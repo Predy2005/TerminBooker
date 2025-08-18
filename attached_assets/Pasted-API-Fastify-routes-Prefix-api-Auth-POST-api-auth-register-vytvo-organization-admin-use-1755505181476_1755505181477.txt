@@ -1,0 +1,98 @@
+API (Fastify routes)
+
+Prefix: /api.
+
+Auth
+
+POST /api/auth/register → vytvoří organization, admin user, nastaví httpOnly cookie.
+
+POST /api/auth/login → ověří email/heslo (argon2), vydá cookie.
+
+POST /api/auth/logout → smaže cookie.
+
+Organizace
+
+GET /api/org → detail přihlášené organizace.
+
+PATCH /api/org → update name/slug/timezone/language (validace Zod).
+
+Služby
+
+GET /api/services
+
+POST /api/services
+
+PATCH /api/services/:id
+
+DELETE /api/services/:id
+
+Dostupnost & Blackouty
+
+GET /api/availability
+
+POST /api/availability
+
+DELETE /api/availability/:id
+
+GET /api/blackouts
+
+POST /api/blackouts
+
+DELETE /api/blackouts/:id
+
+Veřejné
+
+GET /api/public/:orgSlug/services
+
+GET /api/public/:orgSlug/slots?from=ISO&to=ISO&serviceId=...
+
+POST /api/public/:orgSlug/bookings  (rate‑limit + Zod validace)
+
+Admin — rezervace
+
+GET /api/bookings?from&to&serviceId&status
+
+PATCH /api/bookings/:id (změna stavu, poznámka)
+
+DELETE /api/bookings/:id (zrušení)
+
+GET /api/bookings/export.csv?from&to&serviceId&status (Stream odpověď)
+
+7) Autentizace, cookies a CORS
+
+JWT v httpOnly cookie session, SameSite=Lax, Secure v produkci.
+
+CORS: povolit původ klienta z Replitu (URL klienta), hlavičky Content-Type, Authorization.
+
+Ochrana proti CSRF: same‑site cookie + double‑submit token pro citlivé POSTy (skrytý input).
+
+8) Validace
+
+Zod schémata: Service (name 2–80, duration 5–480), Booking (jméno 2–80, email validní), časy ISO8601.
+
+Na DB úrovni: chk_time, ux_bookings_org_time.
+
+Při vytváření rezervace nejdřív SELECT kolizí v transakci; pokud kolize, vrátit 409.
+
+9) E‑maily (nodemailer)
+
+email.ts exportuje sendBookingConfirmation(to, booking, org) a sendBookingStatusChange(...).
+
+Šablony jednoduchý HTML (CZ). V dev režimu log do konzole; v prod SMTP ze .env.
+
+10) Frontend (Vite React)
+
+Public flow /org/:slug: výpis služeb → výběr termínu (kalendář + časy) → formulář → úspěch.
+
+Dashboard /dashboard: přehled dne/týdne, filtry (služba, stav), CRUD služby/dostupnost/blackouty, seznam rezervací + export.
+
+UI knihovny volitelné (Headless UI / Radix). Tailwind pro rychlost.
+
+11) Akceptační kritéria MVP
+
+Veřejný flow: vytvoření rezervace → e‑mail potvrzení (logged v dev), nedojde k dvojí rezervaci.
+
+Admin flow: registrace, login, založení org, vytvoření služby a šablony dostupnosti, zobrazení slotů, CSV export funguje.
+
+Rate‑limit brání spamu (např. 5/min/IP na POST booking).
+
