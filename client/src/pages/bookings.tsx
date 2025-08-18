@@ -43,8 +43,8 @@ export default function Bookings() {
       const params: any = {};
       if (filters.from) params.from = new Date(filters.from + "T00:00:00").toISOString();
       if (filters.to) params.to = new Date(filters.to + "T23:59:59").toISOString();
-      if (filters.serviceId) params.serviceId = filters.serviceId;
-      if (filters.status) params.status = filters.status;
+      if (filters.serviceId && filters.serviceId !== "all") params.serviceId = filters.serviceId;
+      if (filters.status && filters.status !== "all") params.status = filters.status;
       return bookingsApi.getAll(params);
     }
   });
@@ -98,8 +98,8 @@ export default function Bookings() {
       const params: any = {};
       if (filters.from) params.from = new Date(filters.from + "T00:00:00").toISOString();
       if (filters.to) params.to = new Date(filters.to + "T23:59:59").toISOString();
-      if (filters.serviceId) params.serviceId = filters.serviceId;
-      if (filters.status) params.status = filters.status;
+      if (filters.serviceId && filters.serviceId !== "all") params.serviceId = filters.serviceId;
+      if (filters.status && filters.status !== "all") params.status = filters.status;
       return bookingsApi.exportCsv(params);
     },
     onSuccess: (blob) => {
@@ -224,7 +224,7 @@ export default function Bookings() {
                   <SelectValue placeholder="Všechny služby" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Všechny služby</SelectItem>
+                  <SelectItem value="all">Všechny služby</SelectItem>
                   {services.map((service) => (
                     <SelectItem key={service.id} value={service.id}>
                       {service.name}
@@ -243,7 +243,7 @@ export default function Bookings() {
                   <SelectValue placeholder="Všechny stavy" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Všechny stavy</SelectItem>
+                  <SelectItem value="all">Všechny stavy</SelectItem>
                   {statusOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}

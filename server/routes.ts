@@ -504,7 +504,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Forward all other requests to Express
+  // Forward all other requests to Fastify
   app.use("/api", (req, res, next) => {
     server.inject({
       method: req.method as any,
@@ -517,12 +517,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Internal server error" });
       }
       
+      if (!response) {
+        return res.status(500).json({ message: "No response from server" });
+      }
+      
       res.status(response.statusCode);
       
       // Set headers
-      Object.entries(response.headers).forEach(([key, value]) => {
-        res.setHeader(key, value as string);
-      });
+      if (response.headers) {
+        Object.entries(response.headers).forEach(([key, value]) => {
+          if (value) {
+            res.setHeader(key, value as string);
+          }
+        });
+      }
       
       res.send(response.payload);
     });
