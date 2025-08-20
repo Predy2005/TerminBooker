@@ -52,8 +52,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     timeWindow: "1 minute"
   });
 
-  // Auth routes
-  server.post("/api/auth/register", async (request, reply) => {
+  // Auth routes (without /api prefix since Express adds it)
+  server.post("/auth/register", async (request, reply) => {
     try {
       const data = registerSchema.parse(request.body);
       
@@ -101,7 +101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  server.post("/api/auth/login", async (request, reply) => {
+  server.post("/auth/login", async (request, reply) => {
     try {
       const data = loginSchema.parse(request.body);
       
@@ -129,19 +129,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  server.post("/api/auth/logout", async (request, reply) => {
+  server.post("/auth/logout", async (request, reply) => {
     clearAuthCookie(reply);
     return { message: "Odhlášení bylo úspěšné" };
   });
 
   // Organization routes
-  server.get("/api/org", async (request, reply) => {
+  server.get("/org", async (request, reply) => {
     const user = await requireAuth(request, reply);
     const organization = await storage.getOrganization(user.organizationId);
     return organization;
   });
 
-  server.patch("/api/org", async (request, reply) => {
+  server.patch("/org", async (request, reply) => {
     try {
       const user = await requireAuth(request, reply);
       const data = updateOrganizationSchema.parse(request.body);
@@ -161,13 +161,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Services routes
-  server.get("/api/services", async (request, reply) => {
+  server.get("/services", async (request, reply) => {
     const user = await requireAuth(request, reply);
     const services = await storage.getServices(user.organizationId);
     return services;
   });
 
-  server.post("/api/services", async (request, reply) => {
+  server.post("/services", async (request, reply) => {
     try {
       const user = await requireAuth(request, reply);
       const data = serviceSchema.parse(request.body);
@@ -183,7 +183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  server.patch("/api/services/:id", async (request, reply) => {
+  server.patch("/services/:id", async (request, reply) => {
     try {
       const user = await requireAuth(request, reply);
       const { id } = request.params as { id: string };
@@ -196,7 +196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  server.delete("/api/services/:id", async (request, reply) => {
+  server.delete("/services/:id", async (request, reply) => {
     const user = await requireAuth(request, reply);
     const { id } = request.params as { id: string };
     
@@ -205,13 +205,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Availability routes
-  server.get("/api/availability", async (request, reply) => {
+  server.get("/availability", async (request, reply) => {
     const user = await requireAuth(request, reply);
     const templates = await storage.getAvailabilityTemplates(user.organizationId);
     return templates;
   });
 
-  server.post("/api/availability", async (request, reply) => {
+  server.post("/availability", async (request, reply) => {
     try {
       const user = await requireAuth(request, reply);
       const data = availabilityTemplateSchema.parse(request.body);
@@ -227,7 +227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  server.delete("/api/availability/:id", async (request, reply) => {
+  server.delete("/availability/:id", async (request, reply) => {
     const user = await requireAuth(request, reply);
     const { id } = request.params as { id: string };
     
@@ -236,13 +236,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Blackouts routes
-  server.get("/api/blackouts", async (request, reply) => {
+  server.get("/blackouts", async (request, reply) => {
     const user = await requireAuth(request, reply);
     const blackouts = await storage.getBlackouts(user.organizationId);
     return blackouts;
   });
 
-  server.post("/api/blackouts", async (request, reply) => {
+  server.post("/blackouts", async (request, reply) => {
     try {
       const user = await requireAuth(request, reply);
       const data = blackoutSchema.parse(request.body);
@@ -260,7 +260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  server.delete("/api/blackouts/:id", async (request, reply) => {
+  server.delete("/blackouts/:id", async (request, reply) => {
     const user = await requireAuth(request, reply);
     const { id } = request.params as { id: string };
     
@@ -269,7 +269,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Public routes
-  server.get("/api/public/:orgSlug/services", async (request, reply) => {
+  server.get("/public/:orgSlug/services", async (request, reply) => {
     const { orgSlug } = request.params as { orgSlug: string };
     
     const organization = await storage.getOrganizationBySlug(orgSlug);
@@ -283,7 +283,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return { organization, services: activeServices };
   });
 
-  server.get("/api/public/:orgSlug/slots", async (request, reply) => {
+  server.get("/public/:orgSlug/slots", async (request, reply) => {
     try {
       const { orgSlug } = request.params as { orgSlug: string };
       const query = slotsQuerySchema.parse(request.query);
@@ -319,7 +319,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       timeWindow: "1 minute"
     });
 
-    fastify.post("/api/public/:orgSlug/bookings", async (request, reply) => {
+    fastify.post("/public/:orgSlug/bookings", async (request, reply) => {
       try {
         const { orgSlug } = request.params as { orgSlug: string };
         const data = publicBookingSchema.parse(request.body);
@@ -379,7 +379,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin bookings routes
-  server.get("/api/bookings", async (request, reply) => {
+  server.get("/bookings", async (request, reply) => {
     try {
       const user = await requireAuth(request, reply);
       const query = bookingsQuerySchema.parse(request.query);
@@ -397,7 +397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  server.patch("/api/bookings/:id", async (request, reply) => {
+  server.patch("/bookings/:id", async (request, reply) => {
     try {
       const user = await requireAuth(request, reply);
       const { id } = request.params as { id: string };
@@ -436,7 +436,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  server.delete("/api/bookings/:id", async (request, reply) => {
+  server.delete("/bookings/:id", async (request, reply) => {
     const user = await requireAuth(request, reply);
     const { id } = request.params as { id: string };
     
@@ -450,7 +450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // CSV Export endpoint
-  server.get("/api/bookings/export.csv", async (request, reply) => {
+  server.get("/bookings/export.csv", async (request, reply) => {
     try {
       const user = await requireAuth(request, reply);
       const query = bookingsQuerySchema.parse(request.query);

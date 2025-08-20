@@ -12,6 +12,7 @@ import Services from "@/pages/services";
 import Availability from "@/pages/availability";
 import Blackouts from "@/pages/blackouts";
 import Bookings from "@/pages/bookings";
+import Settings from "@/pages/settings";
 
 function Router() {
   return (
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/availability" component={Availability} />
       <Route path="/blackouts" component={Blackouts} />
       <Route path="/bookings" component={Bookings} />
+      <Route path="/settings" component={Settings} />
       
       {/* Fallback to 404 */}
       <Route component={NotFound} />
