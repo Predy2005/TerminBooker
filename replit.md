@@ -95,6 +95,20 @@ Dynamic time slot calculation based on:
 
 # Recent Changes (August 21, 2025)
 
+## URL Slug Auto-Generation System
+- **Automatic slug generation** - URL addresses auto-generate from organization name with Czech diacritics removal
+- **Real-time availability checking** - Visual feedback with loading states and availability indicators
+- **Manual override support** - Users can modify auto-generated slugs with instant validation
+- **Debounced API calls** - Efficient checking with 500ms delay to prevent excessive requests
+- **Visual status indicators** - Green checkmarks for available, red X for taken, loading spinners
+
+## Business Verification & Stripe Integration Enhancement
+- **Comprehensive business data collection** - IČO, DIČ, bank account, address, phone number fields
+- **Anti-fraud protection** - Business verification required before Stripe Connect account creation
+- **Automatic Stripe population** - Business verification data auto-fills Stripe Connect accounts
+- **Enhanced onboarding** - Express vs Individual account types based on business registration
+- **Compliance messaging** - Clear explanations why business data is required
+
 ## Completed Symfony REST API Implementation
 - **Complete entity structure** - Organization, User, Service, Booking, AvailabilityTemplate, Blackout entities with relationships
 - **Repository layer** - Custom queries for business logic and data access

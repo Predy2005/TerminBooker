@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Building2, Upload, Palette, Shield, CreditCard } from "lucide-react";
+import { Save, Building2, Upload, Palette, Shield, CreditCard, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import { apiRequest } from "@/lib/queryClient";
 import { organizationApi } from "@/lib/api";
@@ -42,6 +42,8 @@ export default function Settings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [logoUrl, setLogoUrl] = useState<string>("");
+  const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
+  const [slugChecking, setSlugChecking] = useState(false);
 
   const { data: organization, isLoading } = useQuery({
     queryKey: ["/api/org"],
@@ -106,7 +108,7 @@ export default function Settings() {
 
   // Logo upload handlers
   const handleGetUploadParameters = async () => {
-    const response = await apiRequest("POST", "/api/objects/upload");
+    const response: any = await apiRequest("POST", "/api/objects/upload");
     return {
       method: "PUT" as const,
       url: response.uploadURL,
@@ -120,7 +122,7 @@ export default function Settings() {
       
       try {
         // Update logo on server
-        const response = await apiRequest("PUT", "/api/logo", { logoURL });
+        const response: any = await apiRequest("PUT", "/api/logo", { logoURL });
         setLogoUrl(response.logoUrl);
         
         // Invalidate organization query to refresh data
@@ -145,6 +147,50 @@ export default function Settings() {
       setLogoUrl(organization.logoUrl);
     }
   }, [organization]);
+
+  // Auto-generate slug when name changes
+  const handleNameChange = async (name: string) => {
+    if (name) {
+      try {
+        const response: any = await apiRequest("POST", "/api/org/generate-slug", { name });
+        form.setValue("slug", response.slug);
+        await checkSlugAvailability(response.slug);
+      } catch (error) {
+        console.error("Error generating slug:", error);
+      }
+    }
+  };
+
+  // Check slug availability
+  const checkSlugAvailability = async (slug: string) => {
+    if (!slug) {
+      setSlugAvailable(null);
+      return;
+    }
+
+    setSlugChecking(true);
+    try {
+      const response: any = await apiRequest("GET", `/api/org/check-slug/${slug}`);
+      setSlugAvailable(response.available);
+    } catch (error) {
+      setSlugAvailable(false);
+    } finally {
+      setSlugChecking(false);
+    }
+  };
+
+  // Debounced slug check
+  React.useEffect(() => {
+    const slug = form.watch("slug");
+    if (slug) {
+      const timer = setTimeout(() => {
+        checkSlugAvailability(slug);
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      setSlugAvailable(null);
+    }
+  }, [form.watch("slug")]);
 
   const onSubmit = (data: z.infer<typeof organizationSchema>) => {
     updateOrganization.mutate(data);
@@ -200,8 +246,19 @@ export default function Settings() {
                         <FormItem>
                           <FormLabel>Název organizace</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="Název vaší firmy" data-testid="input-org-name" />
+                            <Input 
+                              {...field} 
+                              placeholder="Název vaší firmy" 
+                              data-testid="input-org-name"
+                              onChange={(e) => {
+                                field.onChange(e);
+                                handleNameChange(e.target.value);
+                              }}
+                            />
                           </FormControl>
+                          <p className="text-sm text-slate-500">
+                            URL adresa se automaticky vygeneruje z názvu organizace
+                          </p>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -214,11 +271,42 @@ export default function Settings() {
                         <FormItem>
                           <FormLabel>URL adresa</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="moje-firma" data-testid="input-org-slug" />
+                            <div className="relative">
+                              <Input 
+                                {...field} 
+                                placeholder="moje-firma" 
+                                data-testid="input-org-slug"
+                                className={`pr-10 ${
+                                  slugAvailable === false ? 'border-red-500 focus:ring-red-500' : 
+                                  slugAvailable === true ? 'border-green-500 focus:ring-green-500' : ''
+                                }`}
+                              />
+                              <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                                {slugChecking ? (
+                                  <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                                ) : slugAvailable === true ? (
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                ) : slugAvailable === false ? (
+                                  <XCircle className="h-4 w-4 text-red-500" />
+                                ) : null}
+                              </div>
+                            </div>
                           </FormControl>
-                          <p className="text-sm text-slate-500">
-                            Zákazníci budą navštěvovat: {window.location.origin}/booking/{field.value || "moje-firma"}
-                          </p>
+                          <div className="space-y-1">
+                            <p className="text-sm text-slate-500">
+                              Zákazníci budou navštěvovat: {window.location.origin}/booking/{field.value || "moje-firma"}
+                            </p>
+                            {slugAvailable === false && (
+                              <p className="text-sm text-red-600">
+                                Tato URL adresa je již používána
+                              </p>
+                            )}
+                            {slugAvailable === true && (
+                              <p className="text-sm text-green-600">
+                                URL adresa je dostupná
+                              </p>
+                            )}
+                          </div>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -341,7 +429,10 @@ export default function Settings() {
                       </p>
                       <p className="text-sm text-orange-700">
                         Pro prevenci podvodných prodejů požadujeme ověření všech obchodních údajů. 
-                        Tyto informace budou použity pouze pro účely compliance a nebudou sdíleny s třetími stranami.
+                        Tyto informace budou automaticky použity při vytváření Stripe platební brány a nebudou sdíleny s třetími stranami.
+                      </p>
+                      <p className="text-sm text-orange-700 mt-2">
+                        <strong>Důležité:</strong> Vyplňte tyto údaje před nastavením platební brány ve Stripe Connect.
                       </p>
                     </div>
 
@@ -479,6 +570,9 @@ export default function Settings() {
                       <p className="text-sm text-blue-700">
                         Bankovní údaje používáme pouze pro ověření totožnosti a prevenci podvodů. 
                         Nebudeme z tohoto účtu nic strhávat ani na něj posílat.
+                      </p>
+                      <p className="text-sm text-blue-700 mt-2">
+                        <strong>Poznámka:</strong> Tyto údaje pomohou urychlit nastavení Stripe platební brány.
                       </p>
                     </div>
 

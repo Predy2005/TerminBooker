@@ -265,6 +265,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Check if URL slug is available
+  server.get("/org/check-slug/:slug", async (request, reply) => {
+    try {
+      const { slug } = request.params as { slug: string };
+      const user = await requireAuth(request, reply);
+      
+      // Check if slug exists and belongs to different organization
+      const existingOrg = await storage.getOrganizationBySlug(slug);
+      
+      if (existingOrg && existingOrg.id !== user.organizationId) {
+        return { available: false, message: "Tato URL adresa je již používána" };
+      }
+      
+      return { available: true };
+    } catch (error: any) {
+      return reply.status(400).send({ message: error.message || "Chyba při kontrole URL" });
+    }
+  });
+
+  // Generate slug from organization name
+  server.post("/org/generate-slug", async (request, reply) => {
+    try {
+      await requireAuth(request, reply);
+      const { name } = request.body as { name: string };
+      
+      if (!name) {
+        return reply.status(400).send({ message: "Název organizace je povinný" });
+      }
+      
+      // Generate slug from name
+      let baseSlug = name
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, '') // Remove special characters
+        .replace(/\s+/g, '-') // Replace spaces with hyphens
+        .replace(/--+/g, '-') // Replace multiple hyphens with single
+        .trim();
+      
+      // Remove Czech diacritics
+      const diacriticsMap: { [key: string]: string } = {
+        'á': 'a', 'č': 'c', 'ď': 'd', 'é': 'e', 'ě': 'e', 'í': 'i', 'ň': 'n',
+        'ó': 'o', 'ř': 'r', 'š': 's', 'ť': 't', 'ú': 'u', 'ů': 'u', 'ý': 'y', 'ž': 'z'
+      };
+      
+      baseSlug = baseSlug.replace(/[áčďéěíňóřšťúůýž]/g, (match) => diacriticsMap[match] || match);
+      
+      // Check if slug is available, if not, add number
+      let slug = baseSlug;
+      let counter = 1;
+      
+      while (true) {
+        const existing = await storage.getOrganizationBySlug(slug);
+        if (!existing) break;
+        
+        slug = `${baseSlug}-${counter}`;
+        counter++;
+      }
+      
+      return { slug };
+    } catch (error: any) {
+      return reply.status(400).send({ message: error.message || "Chyba při generování URL" });
+    }
+  });
+
   // Services routes
   server.get("/services", async (request, reply) => {
     const user = await requireAuth(request, reply);
@@ -696,20 +759,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return reply.status(400).send({ message: "Stripe účet již existuje" });
       }
 
-      // Create Stripe Express account
-      const account = await stripe.accounts.create({
+      // Prepare business information from organization data
+      const businessInfo: any = {
+        name: organization.name,
+        url: `${request.protocol}://${request.headers.host}/booking/${organization.slug}`,
+        mcc: '7298', // Other Services
+        product_description: 'Rezervační služby'
+      };
+
+      // Add business address if available
+      if (organization.businessAddress && organization.businessCity && organization.businessZip && organization.businessCountry) {
+        businessInfo.support_address = {
+          line1: organization.businessAddress,
+          city: organization.businessCity,
+          postal_code: organization.businessZip,
+          country: organization.businessCountry
+        };
+      }
+
+      // Add phone if available
+      if (organization.businessPhone) {
+        businessInfo.support_phone = organization.businessPhone;
+      }
+
+      // Create Stripe Express account with business information
+      const accountData: any = {
         type: 'express',
-        country: 'CZ',
-        business_type: 'individual',
+        country: organization.businessCountry || 'CZ',
+        business_type: organization.businessIco ? 'company' : 'individual',
         capabilities: {
           card_payments: { requested: true },
           transfers: { requested: true },
         },
+        business_profile: businessInfo,
         metadata: {
           organization_id: organization.id,
-          organization_name: organization.name
+          organization_name: organization.name,
+          business_ico: organization.businessIco || '',
+          business_dic: organization.businessDic || ''
         }
-      });
+      };
+
+      // Add company information if available (for business accounts)
+      if (organization.businessIco) {
+        accountData.company = {
+          name: organization.name
+        };
+        
+        if (organization.businessIco) {
+          accountData.company.tax_id = organization.businessIco;
+        }
+
+        if (organization.businessAddress && organization.businessCity && organization.businessZip && organization.businessCountry) {
+          accountData.company.address = {
+            line1: organization.businessAddress,
+            city: organization.businessCity,
+            postal_code: organization.businessZip,
+            country: organization.businessCountry
+          };
+        }
+
+        if (organization.businessPhone) {
+          accountData.company.phone = organization.businessPhone;
+        }
+      }
+
+      const account = await stripe.accounts.create(accountData);
 
       // Update organization with account ID
       await storage.updateOrganizationStripeAccount(organization.id, account.id);
