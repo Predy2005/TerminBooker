@@ -318,7 +318,7 @@ export default function Services() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-200">
-                      {services.map((service) => (
+                      {services.map((service: Service) => (
                         <tr key={service.id} data-testid={`service-row-${service.id}`}>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm font-medium text-slate-900" data-testid={`text-service-name-${service.id}`}>
