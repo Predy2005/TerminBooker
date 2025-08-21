@@ -62,7 +62,23 @@ export default function BookingForm({ service, slot, organization }: BookingForm
 
   const onSubmit = async (data: BookingForm) => {
     try {
-      await createBooking.mutateAsync(data);
+      const result = await createBooking.mutateAsync(data);
+      
+      // If payment is required, redirect to checkout
+      if (result.requiresPayment && result.booking?.id) {
+        try {
+          const checkoutResponse = await publicApi.createCheckout(organization.slug, result.booking.id);
+          window.location.href = checkoutResponse.url;
+          return;
+        } catch (checkoutError: any) {
+          toast({
+            title: "Chyba při přesměrování na platbu",
+            description: checkoutError.message || "Zkuste to prosím znovu",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
       
       setIsSubmitted(true);
       

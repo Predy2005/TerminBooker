@@ -17,6 +17,7 @@ import {
 import { sendBookingConfirmation, sendBookingStatusChange } from "./lib/email";
 import { billingService } from "./lib/billing";
 import { generateTimeSlots } from "./lib/slots";
+import { determinePaymentMode, createCheckoutSession, handleStripeWebhook } from "./lib/payments";
 import {
   registerSchema,
   loginSchema,
@@ -355,6 +356,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return reply.status(409).send({ message: "Tento termín je již obsazen" });
         }
 
+        // Determine payment mode
+        const paymentMode = determinePaymentMode(service, organization);
+        
+        let bookingStatus: "PENDING" | "CONFIRMED" = "PENDING";
+        let paymentStatus = "UNPAID";
+        let holdExpiresAt: Date | undefined;
+
+        if (paymentMode === "REQUIRED") {
+          paymentStatus = "REQUIRES_PAYMENT";
+          holdExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes hold
+        } else if (paymentMode === "OFF") {
+          bookingStatus = "CONFIRMED";
+        }
+
         const booking = await storage.createBooking({
           organizationId: organization.id,
           serviceId: service.id,
@@ -364,7 +379,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           note: data.note,
           startsAt,
           endsAt,
-          status: "PENDING"
+          status: bookingStatus,
+          paymentStatus,
+          holdExpiresAt
         });
 
         // Send confirmation email
@@ -378,11 +395,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error("Failed to send confirmation email:", emailError);
         }
 
-        return { message: "Rezervace byla úspěšně vytvořena", booking };
+        return { 
+          message: "Rezervace byla úspěšně vytvořena", 
+          booking,
+          paymentMode,
+          requiresPayment: paymentMode === "REQUIRED"
+        };
       } catch (error: any) {
         return reply.status(400).send({ message: error.message || "Chyba při vytváření rezervace" });
       }
     });
+
+    // Payment checkout route
+    fastify.post("/public/:orgSlug/bookings/:id/checkout", async (request, reply) => {
+      try {
+        const { orgSlug, id } = request.params as { orgSlug: string; id: string };
+        
+        const organization = await storage.getOrganizationBySlug(orgSlug);
+        if (!organization) {
+          return reply.status(404).send({ message: "Organizace nebyla nalezena" });
+        }
+
+        const booking = await storage.getBooking(id);
+        if (!booking || booking.organizationId !== organization.id) {
+          return reply.status(404).send({ message: "Rezervace nebyla nalezena" });
+        }
+
+        if (booking.paymentStatus !== "REQUIRES_PAYMENT") {
+          return reply.status(400).send({ message: "Rezervace nevyžaduje platbu" });
+        }
+
+        const service = await storage.getService(booking.serviceId);
+        if (!service) {
+          return reply.status(404).send({ message: "Služba nebyla nalezena" });
+        }
+
+        const checkoutSession = await createCheckoutSession(booking, service, organization);
+        return checkoutSession;
+      } catch (error: any) {
+        return reply.status(400).send({ message: error.message || "Chyba při vytváření platby" });
+      }
+    });
+  });
+
+  // Webhook route for booking payments
+  server.post("/public/webhook/stripe", async (request, reply) => {
+    try {
+      const signature = request.headers['stripe-signature'] as string;
+      const payload = request.body as string;
+      
+      await handleStripeWebhook(payload, signature);
+      
+      return { received: true };
+    } catch (error: any) {
+      console.error('Booking payment webhook error:', error);
+      return reply.status(400).send({ message: error.message || "Webhook error" });
+    }
   });
 
   // Admin bookings routes

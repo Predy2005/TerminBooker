@@ -1,0 +1,159 @@
+Online platba služby přes rezervační formulář (Stripe)
+25.1 Cíl
+Umožnit zákazníkovi zaplatit službu online už při vytváření rezervace, pokud má administrátor v nastavení organizace zapnuté „Platba při rezervaci“. Podporovat povinnou platbu (bez ní rezervace nevznikne) i dobrovolnou platbu (rezervace vznikne a platba je navíc).
+25.2 Režimy plateb (na úrovni organizace nebo služby)
+payment_mode = OFF – žádná online platba (výchozí)
+
+
+payment_mode = OPTIONAL – platba volitelná (po odeslání formuláře nabídnout zaplatit)
+
+
+payment_mode = REQUIRED – platba povinná (rezervace je pending_hold a potvrdí se až po zaplacení)
+
+
+Lze přepnout buď globálně pro organizaci, nebo granularně per služba (služba přebíjí nastavení organizace).
+25.3 Úpravy DB (migrace 
+0003_booking_payments_up.sql
+)
+ALTER TABLE services ADD COLUMN require_payment TEXT NOT NULL DEFAULT 'ORG_DEFAULT'; -- ORG_DEFAULT | OFF | OPTIONAL | REQUIRED
+
+
+ALTER TABLE bookings 
+  ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'UNPAID',  -- UNPAID | REQUIRES_PAYMENT | PAID | REFUNDED | FAILED
+  ADD COLUMN payment_provider TEXT,                          -- 'stripe'
+  ADD COLUMN payment_external_id TEXT,                       -- session/payment_intent id
+  ADD COLUMN hold_expires_at TIMESTAMPTZ;                    -- pro REQUIRED: rezervace propadne, pokud se nezaplatí včas
+
+
+CREATE TABLE booking_payments (
+  id                TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id        TEXT NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+  provider          TEXT NOT NULL,            -- 'stripe'
+  external_id       TEXT NOT NULL,            -- checkout.session / payment_intent id
+  amount_cents      INT  NOT NULL,
+  currency          TEXT NOT NULL DEFAULT 'CZK',
+  status            TEXT NOT NULL,            -- created | paid | failed | refunded
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  paid_at           TIMESTAMPTZ,
+  raw_payload       JSONB
+);
+
+
+-- index pro expirované holdy
+CREATE INDEX ix_bookings_hold_expires ON bookings(hold_expires_at) WHERE payment_status='REQUIRES_PAYMENT';
+25.4 API – veřejný flow (Stripe Checkout, default doporučený)
+Kroky (REQUIRED):
+Klient vyplní formulář a odešle → POST /api/public/:orgSlug/bookings (draft). Server vytvoří záznam bookings se stavem PENDING a payment_status='REQUIRES_PAYMENT', vypočte hold_expires_at = now()+15min (TTL). Vrátí bookingId.
+
+
+Frontend zavolá POST /api/public/:orgSlug/bookings/:id/checkout → server vytvoří Stripe Checkout Session (line items = služba, price = services.price_czk, mode=payment, success/cancel URL) a uloží payment_external_id.
+
+
+Frontend redirect na session.url.
+
+
+Stripe po úspěchu zavolá webhook /api/billing/webhook (event checkout.session.completed → payment_intent.succeeded). Server ověří podpis, najde booking podle external_id, nastaví payment_status='PAID', status='CONFIRMED', uloží booking_payments a zruší hold_expires_at.
+
+
+Frontend po návratu na /booking/success?session_id=... může volitelně pingnout GET /api/bookings/:id pro potvrzení stavu.
+
+
+Kroky (OPTIONAL):
+POST /api/public/:orgSlug/bookings vytvoří rezervaci rovnou status='PENDING'/CONFIRMED (dle nastavení), payment_status='UNPAID'. Po úspěchu zobrazit nabídku „Zaplatit online“. Tlačítko spustí krok 2–4.
+
+
+Kroky (OFF):
+POST /api/public/:orgSlug/bookings jako doposud – žádná platba.
+
+
+Endpoints (nové)
+POST /api/public/:orgSlug/bookings → { serviceId, startsAt, name, email, phone?, note? } → { bookingId, mode: 'OFF'|'OPTIONAL'|'REQUIRED' }
+
+
+POST /api/public/:orgSlug/bookings/:id/checkout → vytvoří Stripe Checkout Session → { url }
+
+
+POST /api/billing/webhook → Stripe podpis, zpracování eventů
+
+
+Success/Cancel návratové URL nastav: /booking/success a /booking/cancel (query: bookingId, volitelně session_id).
+25.5 Řešení kolizí a držení slotu
+Při vytvoření draft rezervace (REQUIRED) se slot blokuje až do hold_expires_at.
+
+
+Cron/úklid job (každých 5 min): ruší expirované holdy → status='CANCELLED', payment_status='FAILED' pokud není PAID.
+
+
+Při dalším pokusu o rezervaci stejného slotu: pokud existuje PENDING s aktivním holdem, vrátit 409 „Slot je dočasně blokován“.
+
+
+25.6 UI/UX změny
+Veřejná stránka 
+/:orgSlug
+Pokud mode=REQUIRED: po odeslání formuláře zobraz okno s tlačítkem „Zaplatit nyní“ a odpočtem (např. 15:00). Po kliknutí → redirect na Stripe Checkout.
+
+
+Pokud mode=OPTIONAL: po vytvoření rezervace zobraz CTA „Zaplatit“ (sekundární).
+
+
+Pokud mode=OFF: klasický flow bez plateb.
+
+
+Dashboard 
+/dashboard/bookings
+Sloupec „Platba“: UNPAID / REQUIRES_PAYMENT (do HH:MM) / PAID / FAILED / REFUNDED.
+
+
+Akce admina: „Označit jako zaplaceno“ (manuální), „Vrátit peníze“ (MVP volitelné – jen záznam, bez Stripe refund api).
+
+
+Nastavení 
+/dashboard/billing
+ a 
+/dashboard/services
+V /dashboard/services přidej pole „Režim platby“ (dědí z organizace / vypnuto / volitelné / povinné) + „Cena (CZK)“.
+
+
+V /dashboard/billing zapnutí plateb: kontrolní seznam (Stripe klíče, webhook URL, success/cancel URL), test mód.
+
+
+25.7 Validace a bezpečnost
+Server vždy přepočte cenu ze serverové DB (ne z klienta), kontrola služby a organizace.
+
+
+Webhook: ověření podpisu pomocí STRIPE_WEBHOOK_SECRET, idempotentní zpracování (uložit webhook_events a ignorovat duplicitní external_id).
+
+
+Při REQUIRED režimu se status potvrdí až po webhooku.
+
+
+25.8 E‑maily
+BOOKING_CREATED (REQUIRED): potvrzení přijetí + instrukce k platbě (obsahuje odkaz „Zaplatit“ na /booking/pay?bookingId=...).
+
+
+BOOKING_CONFIRMED (po platbě): potvrzení a souhrn.
+
+
+BOOKING_EXPIRED (neuhrazeno v limitu): informace o zrušení slotu.
+
+
+25.9 Env proměnné (doplnění)
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+PUBLIC_BASE_URL=https://<tvoje-client-url>
+CHECKOUT_SUCCESS_URL=https://<tvoje-client-url>/booking/success
+CHECKOUT_CANCEL_URL=https://<tvoje-client-url>/booking/cancel
+25.10 Testovací scénáře (placené rezervace)
+REQ: Rezervace služby s cenou → vytvoří draft booking (hold 15 min) → redirect na Checkout → zaplatit test kartou 4242… → webhook potvrdí booking (PAID+CONFIRMED).
+
+
+REQ: Nezaplatím → po 15 min cron zruší booking, slot se uvolní.
+
+
+OPT: Vytvořím rezervaci bez platby → následně „Zaplatit“ funguje → payment_status=PAID.
+
+
+Kolize: druhý uživatel se snaží o stejný čas, když je aktivní hold → obdrží 409.
+
+
+Webhook replay → nedojde k dvojímu započtení platby (idempotence).

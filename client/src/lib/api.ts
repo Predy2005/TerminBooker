@@ -224,5 +224,21 @@ export const publicApi = {
     }
     
     return response.json();
+  },
+
+  createCheckout: async (orgSlug: string, bookingId: string) => {
+    const response = await fetch(`/api/public/${orgSlug}/bookings/${bookingId}/checkout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      throw new ApiError(response.status, error);
+    }
+    
+    return response.json();
   }
 };

@@ -1,5 +1,5 @@
 import { 
-  organizations, users, services, availabilityTemplates, blackouts, bookings, payments, webhookEvents,
+  organizations, users, services, availabilityTemplates, blackouts, bookings, payments, webhookEvents, bookingPayments,
   type Organization, type InsertOrganization,
   type User, type InsertUser,
   type Service, type InsertService,
@@ -8,7 +8,8 @@ import {
   type Booking, type InsertBooking,
   type Payment, type InsertPayment,
   type WebhookEvent, type InsertWebhookEvent,
-  type BookingStatus
+  type BookingPayment, type InsertBookingPayment,
+  type BookingStatus, type PaymentStatus
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, between, desc, asc } from "drizzle-orm";
@@ -71,6 +72,11 @@ export interface IStorage {
 
   // Webhook Events
   createWebhookEvent(event: InsertWebhookEvent): Promise<WebhookEvent>;
+
+  // Booking Payments
+  createBookingPayment(payment: InsertBookingPayment): Promise<BookingPayment>;
+  updateBookingPaymentByExternalId(externalId: string, update: Partial<InsertBookingPayment>): Promise<BookingPayment>;
+  getBookingPaymentByExternalId(externalId: string): Promise<BookingPayment | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -306,6 +312,29 @@ export class DatabaseStorage implements IStorage {
   async createWebhookEvent(event: InsertWebhookEvent): Promise<WebhookEvent> {
     const [created] = await db.insert(webhookEvents).values(event).returning();
     return created;
+  }
+
+  // Booking Payments
+  async createBookingPayment(payment: InsertBookingPayment): Promise<BookingPayment> {
+    const [created] = await db.insert(bookingPayments).values(payment).returning();
+    return created;
+  }
+
+  async updateBookingPaymentByExternalId(externalId: string, update: Partial<InsertBookingPayment>): Promise<BookingPayment> {
+    const [updated] = await db
+      .update(bookingPayments)
+      .set(update)
+      .where(eq(bookingPayments.externalId, externalId))
+      .returning();
+    return updated;
+  }
+
+  async getBookingPaymentByExternalId(externalId: string): Promise<BookingPayment | undefined> {
+    const [payment] = await db
+      .select()
+      .from(bookingPayments)
+      .where(eq(bookingPayments.externalId, externalId));
+    return payment || undefined;
   }
 }
 

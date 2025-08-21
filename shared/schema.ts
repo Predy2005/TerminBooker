@@ -34,6 +34,7 @@ export const services = pgTable("services", {
   name: text("name").notNull(),
   durationMin: integer("duration_min").notNull(),
   priceCzk: integer("price_czk"),
+  requirePayment: text("require_payment").notNull().default("ORG_DEFAULT"), // ORG_DEFAULT | OFF | OPTIONAL | REQUIRED
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().default(sql`now()`)
 }, (table) => ({
@@ -73,12 +74,29 @@ export const bookings = pgTable("bookings", {
   startsAt: timestamp("starts_at").notNull(),
   endsAt: timestamp("ends_at").notNull(),
   status: bookingStatusEnum("status").notNull().default("PENDING"),
+  paymentStatus: text("payment_status").notNull().default("UNPAID"), // UNPAID | REQUIRES_PAYMENT | PAID | REFUNDED | FAILED
+  paymentProvider: text("payment_provider"), // 'stripe'
+  paymentExternalId: text("payment_external_id"), // session/payment_intent id
+  holdExpiresAt: timestamp("hold_expires_at"), // pro REQUIRED: rezervace propadne, pokud se nezaplatí včas
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`)
 }, (table) => ({
   timeCheck: sql`CHECK (${table.startsAt} < ${table.endsAt})`,
   uniqueOrgTime: uniqueIndex("ux_bookings_org_time").on(table.organizationId, table.startsAt, table.endsAt)
 }));
+
+export const bookingPayments = pgTable("booking_payments", {
+  id: text("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingId: text("booking_id").notNull().references(() => bookings.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull(), // 'stripe'
+  externalId: text("external_id").notNull(), // checkout.session / payment_intent id
+  amountCents: integer("amount_cents").notNull(),
+  currency: text("currency").notNull().default("CZK"),
+  status: text("status").notNull(), // created | paid | failed | refunded
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  paidAt: timestamp("paid_at"),
+  rawPayload: jsonb("raw_payload")
+});
 
 // Relations
 export const organizationsRelations = relations(organizations, ({ many }) => ({
@@ -87,7 +105,7 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   availabilityTemplates: many(availabilityTemplates),
   blackouts: many(blackouts),
   bookings: many(bookings),
-  payments: many(payments)
+  bookingPayments: many(bookingPayments)
 }));
 
 export const usersRelations = relations(users, ({ one }) => ({
@@ -105,7 +123,7 @@ export const servicesRelations = relations(services, ({ one, many }) => ({
   bookings: many(bookings)
 }));
 
-export const bookingsRelations = relations(bookings, ({ one }) => ({
+export const bookingsRelations = relations(bookings, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [bookings.organizationId],
     references: [organizations.id]
@@ -113,6 +131,14 @@ export const bookingsRelations = relations(bookings, ({ one }) => ({
   service: one(services, {
     fields: [bookings.serviceId],
     references: [services.id]
+  }),
+  payments: many(bookingPayments)
+}));
+
+export const bookingPaymentsRelations = relations(bookingPayments, ({ one }) => ({
+  booking: one(bookings, {
+    fields: [bookingPayments.bookingId],
+    references: [bookings.id]
   })
 }));
 
@@ -201,6 +227,11 @@ export const insertWebhookEventSchema = createInsertSchema(webhookEvents).omit({
   receivedAt: true
 });
 
+export const insertBookingPaymentSchema = createInsertSchema(bookingPayments).omit({
+  id: true,
+  createdAt: true
+});
+
 // Types
 export type Organization = typeof organizations.$inferSelect;
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
@@ -227,3 +258,9 @@ export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 
 export type WebhookEvent = typeof webhookEvents.$inferSelect;
 export type InsertWebhookEvent = z.infer<typeof insertWebhookEventSchema>;
+
+export type BookingPayment = typeof bookingPayments.$inferSelect;
+export type InsertBookingPayment = z.infer<typeof insertBookingPaymentSchema>;
+
+export type PaymentMode = "OFF" | "OPTIONAL" | "REQUIRED";
+export type PaymentStatus = "UNPAID" | "REQUIRES_PAYMENT" | "PAID" | "REFUNDED" | "FAILED";

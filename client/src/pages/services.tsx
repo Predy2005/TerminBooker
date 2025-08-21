@@ -13,13 +13,16 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { servicesApi } from "@/lib/api";
-import { Plus, Edit, Trash2, Clock, DollarSign } from "lucide-react";
+import { Plus, Edit, Trash2, Clock, DollarSign, CreditCard } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import type { Service } from "@/types";
 
 const serviceSchema = z.object({
   name: z.string().min(2, "Název služby musí mít alespoň 2 znaky").max(80, "Název služby může mít maximálně 80 znaků"),
   durationMin: z.number().min(5, "Minimální délka služby je 5 minut").max(480, "Maximální délka služby je 480 minut"),
   priceCzk: z.number().positive("Cena musí být kladné číslo").optional(),
+  requirePayment: z.enum(["ORG_DEFAULT", "OFF", "OPTIONAL", "REQUIRED"]).optional(),
   isActive: z.boolean().optional()
 });
 

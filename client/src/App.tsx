@@ -15,6 +15,8 @@ import Bookings from "@/pages/bookings";
 import Settings from "@/pages/settings";
 import Pricing from "@/pages/pricing";
 import BillingSuccess from "@/pages/billing-success";
+import BookingSuccess from "@/pages/booking-success";
+import BookingCancel from "@/pages/booking-cancel";
 
 function Router() {
   return (
@@ -36,6 +38,10 @@ function Router() {
       <Route path="/settings" component={Settings} />
       <Route path="/pricing" component={Pricing} />
       <Route path="/billing/success" component={BillingSuccess} />
+      
+      {/* Booking payment routes */}
+      <Route path="/booking/success" component={BookingSuccess} />
+      <Route path="/booking/cancel" component={BookingCancel} />
       
       {/* Fallback to 404 */}
       <Route component={NotFound} />
