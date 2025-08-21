@@ -18,13 +18,13 @@ export default function Sidebar() {
   const logout = useLogout();
 
   const navigation = [
-    { name: "Přehled", href: "/dashboard", icon: BarChart3 },
-    { name: "Rezervace", href: "/bookings", icon: Calendar },
-    { name: "Služby", href: "/services", icon: Bell },
-    { name: "Dostupnost", href: "/availability", icon: Clock },
-    { name: "Blokace", href: "/blackouts", icon: Ban },
-    { name: "Cenové plány", href: "/pricing", icon: CreditCard },
-    { name: "Nastavení", href: "/settings", icon: Settings }
+    { name: "Přehled", href: "/app", icon: BarChart3 },
+    { name: "Rezervace", href: "/app/bookings", icon: Calendar },
+    { name: "Služby", href: "/app/services", icon: Bell },
+    { name: "Dostupnost", href: "/app/availability", icon: Clock },
+    { name: "Blokace", href: "/app/blackouts", icon: Ban },
+    { name: "Cenové plány", href: "/app/pricing", icon: CreditCard },
+    { name: "Nastavení", href: "/app/settings", icon: Settings }
   ];
 
   const handleLogout = () => {

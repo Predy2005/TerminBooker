@@ -132,7 +132,7 @@ export default function Login() {
             <div className="mt-6 text-center">
               <p className="text-sm text-slate-600">
                 Nemáte účet?{" "}
-                <Link href="/register">
+                <Link href="/app/auth/register">
                   <Button variant="link" className="p-0 font-medium">
                     Zaregistrujte se
                   </Button>

@@ -1,0 +1,367 @@
+Struktura stránky (sekce + pořadí)
+	1.	Hero (nad přehybem)
+
+	•	Nadpis:
+Jednoduchý online rezervační kalendář pro malé provozy
+	•	Podtitul:
+Zveřejni volné termíny, přijímej rezervace a měj vše přehledně na jednom místě. CZ lokalizace, e‑maily, export do CSV.
+	•	Primární CTA (button): Vyzkoušet zdarma (vede na /app/auth/register nebo demo)
+	•	Sekundární CTA (link): Ukázka (demo) (vede na /:orgSlug např. /demo-salon)
+	•	Důvěryhodnost pod CTA (ikonky/odrážky):
+„Bez závazku • Běží v cloudu • Odesílá potvrzovací e‑maily“
+	•	Obrázek/ilustrace: mockup dashboardu/kalendáře (placeholder)
+
+	2.	Pro koho je
+
+	•	Nadpis: Pro koho je tento nástroj
+	•	Odrážky (krátké věty, s ikonou):
+	•	Trenéři a lektoři (individuální i skupinové termíny)
+	•	Kadeřníci a kosmetika (rychlé objednání na konkrétní čas)
+	•	Fotografové a malé ateliéry
+	•	Malé kliniky a ordinace
+	•	Konzultanti a poradci
+
+	3.	Hodnota a klíčové benefity
+
+	•	Nadpis: Méně telefonátů, více času na práci
+	•	3–4 karty s krátkým textem:
+	•	Jasné volné termíny – Zákazník si sám vybere čas, tobě přijde potvrzení.
+	•	Jednoduchá správa – Přehledný dashboard dne/týdne, filtry, exporty.
+	•	CZ e‑maily – Potvrzení rezervace, změny stavu, expirace plateb.
+	•	Bezpečnost – Přihlášení přes cookie, rate‑limit, kontrola kolizí.
+
+	4.	Jak to funguje (3 kroky)
+
+	•	Nadpis: Jak to funguje
+	•	Kroky:
+	1.	Vytvoř si účet – zvol název organizace a časové pásmo.
+	2.	Přidej služby a dostupnost – nastav délku, cenu a okna dostupnosti.
+	3.	Sdílej odkaz na svou veřejnou stránku – a začni přijímat rezervace.
+
+	5.	Funkce (výčet)
+
+	•	Nadpis: Funkce v základu
+	•	Odrážky:
+	•	Veřejná stránka organizace /:orgSlug
+	•	Služby (název, délka, cena, aktivita)
+	•	Týdenní šablony dostupnosti + Blackouty
+	•	Rezervace (PENDING/CONFIRMED/CANCELLED)
+	•	Export do CSV
+	•	Potvrzovací e‑maily (dev log/SMTP)
+	•	Rate‑limit a anti‑spam
+	•	CZ lokalizace, časová zóna Europe/Prague
+
+	6.	Online platby (volitelné)
+
+	•	Nadpis: Online platby přes Stripe (volitelné)
+	•	Text:
+Zapni platbu při rezervaci jako vypnutou, volitelnou nebo povinnou. U povinné platby se slot drží 15 minut a rezervace se potvrdí automaticky po zaplacení.
+	•	CTA (sekundární): Přečíst, jak fungují platby (vede na /docs#platby)
+
+	7.	Ceník (FREE / PRO / BUSINESS)
+
+	•	Nadpis: Jednoduché a férové ceny
+	•	Subtext: Všechny plány můžeš kdykoli změnit. Ceny vč. DPH.
+	•	Tabulka/karty:
+	•	FREE — 0 Kč / měsíc
+	•	1 organizace
+	•	max. 1 služba
+	•	max. 50 rezervací / měsíc
+	•	Veřejná stránka /:orgSlug
+	•	E‑mail potvrzení (plain)
+	•	Export CSV
+	•	Branding v patičce
+	•	CTA: Začít zdarma
+	•	PRO — 229 Kč / měsíc
+	•	1 organizace
+	•	až 5 služeb
+	•	1000 rezervací / měsíc
+	•	Vypnutí brandingu
+	•	Vylepšené e‑maily (logo, odesílatel)
+	•	Blackouty + týdenní šablony
+	•	Lepší rate‑limit
+	•	CTA: Přejít na PRO
+	•	BUSINESS — 649 Kč / měsíc
+	•	Neomezené služby
+	•	Neomezené rezervace*
+	•	Až 5 admin uživatelů
+	•	Integrace (Google Calendar, webhooks – připraveno)
+	•	Přednostní podpora
+	•	*férové použití
+	•	CTA: Přejít na BUSINESS
+	•	Poznámka: „*Neomezené v rámci férového používání.“
+
+	8.	FAQ (často kladené dotazy)
+
+	•	Nadpis: FAQ
+	•	Q/A (viz níže – konkrétní texty)
+
+	9.	Call‑to‑Action (opakování)
+
+	•	Box s CTA:
+Začni přijímat rezervace ještě dnes
+Tlačítko: Vytvořit účet zdarma (→ /app/auth/register)
+Link: Podívat se na ukázku (→ /demo-salon)
+
+	10.	Kontakt + odkazy
+
+	•	Nadpis: Kontakt
+	•	Text:
+Potřebuješ poradit nebo chybí funkce? Napiš: support@tvoje‑domena.cz
+Odkazy v patičce:
+	•	Dokumentace (/docs)
+	•	Stav systému (/status) – volitelné
+	•	Podpora (/support) – jednoduchý formulář
+	•	Obchodní podmínky (/terms)
+	•	Zásady ochrany osobních údajů (/privacy)
+
+⸻
+
+Konkrétní texty do sekcí (copy)
+
+Hero
+
+Nadpis:
+Jednoduchý online rezervační kalendář pro malé provozy
+
+Podtitul:
+Zveřejni volné termíny, přijímej rezervace a měj vše přehledně na jednom místě. CZ lokalizace, e‑maily, export do CSV.
+
+Primární tlačítko: Vyzkoušet zdarma
+Sekundární odkaz: Ukázka (demo)
+
+⸻
+
+Pro koho je
+
+Pro koho je tento nástroj
+	•	Trenéři a lektoři
+	•	Kadeřníci a kosmetika
+	•	Fotografové a malé ateliéry
+	•	Malé kliniky a ordinace
+	•	Konzultanti a poradci
+
+⸻
+
+Hodnota a benefity
+
+Méně telefonátů, více času na práci
+	•	Jasné volné termíny: Zákazník si sám vybere čas, tobě přijde potvrzení.
+	•	Jednoduchá správa: Přehled dne/týdne, filtry, exporty.
+	•	CZ e‑maily: Potvrzení rezervace, změny stavu, expirace plateb.
+	•	Bezpečnost: Přihlášení přes cookie, rate‑limit, kontrola kolizí.
+
+⸻
+
+Jak to funguje
+	1.	Vytvoř si účet – zvol název organizace a časové pásmo.
+	2.	Přidej služby a dostupnost – nastav délku, cenu a okna dostupnosti.
+	3.	Sdílej odkaz na svou veřejnou stránku – a začni přijímat rezervace.
+
+⸻
+
+Funkce v základu
+	•	Veřejná stránka organizace /:orgSlug
+	•	Služby (název, délka, cena, aktivita)
+	•	Týdenní šablony dostupnosti + Blackouty
+	•	Rezervace (PENDING/CONFIRMED/CANCELLED)
+	•	Export do CSV
+	•	Potvrzovací e‑maily (dev log/SMTP)
+	•	Rate‑limit a anti‑spam
+	•	CZ lokalizace, časová zóna Europe/Prague
+
+⸻
+
+Online platby (volitelné)
+
+Zapni platbu při rezervaci jako vypnutou, volitelnou nebo povinnou.
+U povinné platby se slot drží 15 minut (hold) a rezervace se potvrdí automaticky po zaplacení přes Stripe Checkout.
+
+⸻
+
+Ceník
+
+Viz tabulka výše (FREE / PRO / BUSINESS).
+
+⸻
+
+FAQ (doporučený obsah)
+
+Je Free plán opravdu zdarma?
+Ano. Free plán je bez časového omezení, s limity: 1 služba a 50 rezervací/měsíc.
+
+Můžu kdykoliv přejít na PRO nebo BUSINESS?
+Ano. Upgrade proběhne přes Stripe – přesměrování na zabezpečenou platební stránku.
+
+Potřebuji vlastní web?
+Ne. Dostaneš veřejnou stránku /:orgSlug, odkaz můžeš sdílet na sociálních sítích, Google firemním profilu nebo vložit na svůj web.
+
+Jak fungují online platby?
+V administraci zapneš režim plateb (OFF/OPTIONAL/REQUIRED). V REQUIRED vznikne dočasná „držák“ rezervace, která se potvrdí po zaplacení. Nezaplacené držáky expirují.
+
+Můžu exportovat rezervace?
+Ano, přes CSV export v administraci.
+
+Je systém v češtině?
+Ano. CZ lokalizace a časové zóny.
+
+Jak řešíte bezpečnost?
+Přihlášení přes httpOnly cookie, kontrola kolizí rezervací, rate‑limit na veřejných endpointech.
+
+Můžu skrýt branding?
+Ano, od plánu PRO.
+
+Podporujete Google Calendar nebo iCal?
+V Business plánu je připravená integrace (postupně rozšiřujeme).
+
+Kde získám pomoc?
+Napiš na support@tvoje‑domena.cz nebo použitím formuláře na stránce /support.
+
+⸻
+
+Kontakt
+
+Podpora: support@tvoje‑domena.cz
+Fakturační údaje: (doplň IČ/DIČ, název, sídlo)
+Pro média/partnery: press@tvoje‑domena.cz (volitelné)
+
+⸻
+
+Dokumentace (samostatná stránka /docs)
+
+Použij jednoduchý rozcestník:
+	•	Začínáme
+	•	Vytvoření účtu a organizace
+	•	Přidání první služby
+	•	Nastavení dostupnosti a blackoutů
+	•	Sdílení veřejné stránky /:orgSlug
+	•	Rezervace
+	•	Stavy (PENDING, CONFIRMED, CANCELLED)
+	•	Export do CSV
+	•	Filtrování v dashboardu
+	•	Platby (Stripe)
+	•	Režimy OFF/OPTIONAL/REQUIRED
+	•	Držák (hold) 15 minut a expirace
+	•	Návratové URL /booking/success a /booking/cancel
+	•	Testovací karta 4242 4242 4242 4242 (pouze v testu)
+	•	Limity a plány
+	•	Free: 1 služba, 50 rezervací/měsíc
+	•	PRO: 5 služeb, 1000 rezervací/měsíc
+	•	BUSINESS: neomezeně (férové použití)
+	•	Bezpečnost a soukromí
+	•	JWT v httpOnly cookie (SameSite=Lax)
+	•	SMTP e‑maily (Seznam Profi / jiný SMTP)
+	•	Ukládání dat v EU (doplň poskytovatele DB)
+	•	Často kladené dotazy
+(zrcadlit FAQ a doplňovat podle podpory)
+
+⸻
+
+Stránka podpory (/support)
+
+Formulář:
+	•	Jméno (povinné)
+	•	E‑mail (povinné)
+	•	Organizace/slug (volitelné)
+	•	Předmět (select: Technický dotaz / Platby / Fakturace / Jiný)
+	•	Zpráva (povinné)
+	•	Odeslat
+
+Po odeslání:
+	•	Zobrazení hlášky: „Děkujeme, ozveme se co nejdřív na uvedený e‑mail.“
+	•	Odeslat notifikaci na support@… a autoresponder uživateli (viz níže).
+
+Autoresponder – návrh textu:
+Subject: Přijali jsme tvůj dotaz
+Text:
+Ahoj, díky za zprávu! Právě jsme ji přijali a brzy se ozveme.
+— Tým [Název produktu]
+
+⸻
+
+Právní stránky
+
+/terms — Obchodní podmínky (minimální skelet)
+	•	Úvod a definice
+	•	Objednávka a poskytování služby (SaaS)
+	•	Cena a platby (Stripe, měsíční předplatné, fakturace)
+	•	Doba trvání a ukončení (výpověď, refundace – pravidla)
+	•	Odpovědnost a SLA (rozumné prohlášení)
+	•	Ochrana dat a soukromí (odkaz na /privacy)
+	•	Závěrečná ustanovení (jurisdikce, změny podmínek)
+
+/privacy — Zásady ochrany osobních údajů (minimální skelet)
+	•	Správce a kontakty
+	•	Jaká data zpracováváme (účet, rezervace, e‑maily)
+	•	Účel a právní titul
+	•	Doba uchování
+	•	Příjemci (hosting, e‑mail, platební brána)
+	•	Práva subjektu údajů a kontakt pro žádosti
+	•	Cookies a měření (viz níže)
+
+⸻
+
+SEO + technické drobnosti
+
+Title (domovská):
+Mini rezervační kalendář pro malé provozy – CZ, e‑maily, export
+
+Meta description:
+Jednoduchý online rezervační systém pro trenéry, kadeřníky, fotografy a malé provozy. CZ lokalizace, potvrzovací e‑maily, export CSV. Začni zdarma.
+
+Open Graph:
+	•	og:title, og:description, og:image (mockup), og:type=website, og:url
+
+Sitemap & robots:
+	•	/sitemap.xml (domů, /docs, /pricing, /support, /terms, /privacy)
+	•	robots.txt povolit indexaci marketingových stránek, ne /app/*
+
+Schema.org (JSON‑LD, na domovské stránce):
+	•	Organization (name, url, logo, contactPoint)
+	•	FAQPage (FAQ položky z výše)
+	•	Product se offers (ceny plánů)
+
+(Pozn.: FAQ JSON‑LD vkládej jen na stránku, kde otázky skutečně zobrazuješ.)
+
+⸻
+
+Patička (footer)
+	•	© {Year} {Název produktu}
+	•	Odkazy: Dokumentace / Support / Terms / Privacy
+	•	Volitelně badge „Powered by {Název}“ (skrytelný v PRO+)
+
+⸻
+
+CTA texty (ke konzistentnímu použití)
+	•	Vyzkoušet zdarma
+	•	Vytvořit účet
+	•	Podívat se na ukázku
+	•	Přejít na PRO / BUSINESS
+	•	Přečíst dokumentaci
+	•	Kontaktovat podporu
+
+⸻
+
+Měření a cookie lišta (rychlý nástřel)
+	•	Google Analytics / Plausible – vložit skript pouze po souhlasu „Analytické“.
+	•	Cookie lišta s kategoriemi: Nutné (povoleno), Analytické (volitelné).
+	•	Uložit souhlas (localStorage/cookie), skripty spouštět podmíněně.
+
+⸻
+
+Doporučené URL
+	•	/ (landing)
+	•	/pricing (může být kotva na landing)
+	•	/docs
+	•	/support
+	•	/terms
+	•	/privacy
+	•	/app/* (admin) – neindexovat
+	•	/:orgSlug (veřejná stránka organizace) – indexovat
+
+⸻
+
+Minimální hlášky (UX copy)
+	•	Úspěch formuláře: „Hotovo! Ozveme se co nejdřív.“
+	•	Chyba formuláře: „Zkus to prosím znovu nebo napiš na support@…“
+	•	Prázdný stav (např. bez služeb): „Zatím nemáš žádné služby. Přidej první.“

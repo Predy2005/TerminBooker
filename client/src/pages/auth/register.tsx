@@ -57,7 +57,7 @@ export default function Register() {
         description: "Váš účet byl vytvořen. Vítejte!"
       });
       
-      setLocation("/dashboard");
+      setLocation("/app");
     } catch (error: any) {
       toast({
         title: "Chyba při registraci",
@@ -212,7 +212,7 @@ export default function Register() {
             <div className="mt-6 text-center">
               <p className="text-sm text-slate-600">
                 Již máte účet?{" "}
-                <Link href="/login">
+                <Link href="/app/auth/login">
                   <Button variant="link" className="p-0 font-medium">
                     Přihlaste se
                   </Button>

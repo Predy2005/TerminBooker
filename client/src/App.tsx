@@ -3,6 +3,9 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import LandingPage from "@/pages/landing";
+import DocsPage from "@/pages/docs";
+import SupportPage from "@/pages/support";
 import NotFound from "@/pages/not-found";
 import PublicBooking from "@/pages/public-booking";
 import Dashboard from "@/pages/dashboard";
@@ -21,22 +24,29 @@ import BookingCancel from "@/pages/booking-cancel";
 function Router() {
   return (
     <Switch>
-      {/* Public routes */}
-      <Route path="/org/:slug" component={PublicBooking} />
+      {/* Landing page */}
+      <Route path="/" component={LandingPage} />
+      
+      {/* Static pages */}
+      <Route path="/docs" component={DocsPage} />
+      <Route path="/support" component={SupportPage} />
+      
+      {/* Public booking routes */}
+      <Route path="/:orgSlug" component={PublicBooking} />
       
       {/* Auth routes */}
-      <Route path="/login" component={Login} />
-      <Route path="/register" component={Register} />
+      <Route path="/app/auth/login" component={Login} />
+      <Route path="/app/auth/register" component={Register} />
       
       {/* Dashboard routes */}
-      <Route path="/" component={Dashboard} />
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/services" component={Services} />
-      <Route path="/availability" component={Availability} />
-      <Route path="/blackouts" component={Blackouts} />
-      <Route path="/bookings" component={Bookings} />
-      <Route path="/settings" component={Settings} />
-      <Route path="/pricing" component={Pricing} />
+      <Route path="/app" component={Dashboard} />
+      <Route path="/app/dashboard" component={Dashboard} />
+      <Route path="/app/services" component={Services} />
+      <Route path="/app/availability" component={Availability} />
+      <Route path="/app/blackouts" component={Blackouts} />
+      <Route path="/app/bookings" component={Bookings} />
+      <Route path="/app/settings" component={Settings} />
+      <Route path="/app/pricing" component={Pricing} />
       <Route path="/billing/success" component={BillingSuccess} />
       
       {/* Booking payment routes */}

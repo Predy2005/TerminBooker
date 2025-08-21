@@ -1,6 +1,6 @@
 # Overview
 
-This is a reservation management system built with a modern full-stack architecture. The application allows organizations to manage their services, availability schedules, and customer bookings through both admin and public interfaces. It features a complete booking flow where customers can view available services, select time slots, and make reservations, while administrators can manage their organization's settings, services, availability templates, and view/manage all bookings.
+This is Bookli.cz - a Czech-localized booking system SaaS MVP designed for small businesses to streamline service scheduling and customer management. The application features a complete landing page showcasing the service, followed by a comprehensive admin booking system with flexible payment processing. The system includes both public-facing marketing pages and a full-featured reservation management dashboard with configurable payment modes (OFF/OPTIONAL/REQUIRED) and Stripe integration.
 
 # User Preferences
 
@@ -45,12 +45,20 @@ The PostgreSQL schema includes:
 
 ## API Structure
 RESTful API with prefix `/api`:
-- **Auth routes** - Registration, login, logout
+- **Auth routes** - Registration, login, logout (moved to `/app/auth/*`)
 - **Organization management** - Settings and configuration
-- **Service management** - CRUD operations for services
-- **Availability management** - Weekly templates and blackout periods
+- **Service management** - CRUD operations for services with payment modes
+- **Availability management** - Weekly templates and blackout periods  
 - **Booking management** - Admin booking oversight
 - **Public routes** - Customer-facing booking interface
+- **Payment routes** - Stripe integration for optional/required payments
+
+## Route Structure
+- **Landing page** (`/`) - Marketing site with pricing, features, and FAQ
+- **Admin routes** (`/app/*`) - Dashboard, services, bookings, settings
+- **Auth routes** (`/app/auth/*`) - Login and registration
+- **Static pages** (`/docs`, `/support`) - Documentation and support
+- **Public booking** (`/:orgSlug`) - Customer booking interface
 
 ## Time Slot Generation
 Dynamic time slot calculation based on:
