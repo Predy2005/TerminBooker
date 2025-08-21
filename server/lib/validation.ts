@@ -53,7 +53,7 @@ export const blackoutSchema = insertBlackoutSchema.extend({
 
 // Booking schemas
 export const publicBookingSchema = z.object({
-  serviceId: z.string().uuid("Neplatné ID služby"),
+  serviceId: z.string().min(1, "Neplatné ID služby"),
   customerName: z.string().min(2, "Jméno musí mít alespoň 2 znaky").max(80, "Jméno může mít maximálně 80 znaků"),
   customerEmail: z.string().email("Neplatná e-mailová adresa"),
   customerPhone: z.string().optional(),
@@ -84,12 +84,12 @@ export const updateOrganizationSchema = insertOrganizationSchema.partial().exten
 export const bookingsQuerySchema = z.object({
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
-  serviceId: z.string().uuid().optional(),
+  serviceId: z.string().min(1).optional(),
   status: z.enum(["PENDING", "CONFIRMED", "CANCELLED"]).optional()
 });
 
 export const slotsQuerySchema = z.object({
   from: z.string().datetime("Neplatný formát data začátku"),
   to: z.string().datetime("Neplatný formát data konce"),
-  serviceId: z.string().uuid("Neplatné ID služby")
+  serviceId: z.string().min(1, "Neplatné ID služby")
 });
