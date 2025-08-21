@@ -368,6 +368,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           holdExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes hold
         } else if (paymentMode === "OFF") {
           bookingStatus = "CONFIRMED";
+        } else if (paymentMode === "OPTIONAL") {
+          // For OPTIONAL: booking is CONFIRMED but customer can choose to pay
+          bookingStatus = "CONFIRMED";
         }
 
         const booking = await storage.createBooking({
@@ -399,7 +402,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Rezervace byla úspěšně vytvořena", 
           booking,
           paymentMode,
-          requiresPayment: paymentMode === "REQUIRED"
+          requiresPayment: paymentMode === "REQUIRED",
+          optionalPayment: paymentMode === "OPTIONAL"
         };
       } catch (error: any) {
         return reply.status(400).send({ message: error.message || "Chyba při vytváření rezervace" });
@@ -421,8 +425,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return reply.status(404).send({ message: "Rezervace nebyla nalezena" });
         }
 
-        if (booking.paymentStatus !== "REQUIRES_PAYMENT") {
-          return reply.status(400).send({ message: "Rezervace nevyžaduje platbu" });
+        if (booking.paymentStatus !== "REQUIRES_PAYMENT" && booking.paymentStatus !== "UNPAID") {
+          return reply.status(400).send({ message: "Rezervace nevyžaduje platbu nebo už byla zaplacena" });
         }
 
         const service = await storage.getService(booking.serviceId);

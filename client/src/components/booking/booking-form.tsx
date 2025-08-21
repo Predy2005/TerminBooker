@@ -35,6 +35,8 @@ interface BookingFormProps {
 
 export default function BookingForm({ service, slot, organization }: BookingFormProps) {
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [bookingResult, setBookingResult] = useState<any>(null);
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<BookingForm>({
@@ -64,7 +66,7 @@ export default function BookingForm({ service, slot, organization }: BookingForm
     try {
       const result = await createBooking.mutateAsync(data);
       
-      // If payment is required, redirect to checkout
+      // If payment is required, redirect to checkout immediately
       if (result.requiresPayment && result.booking?.id) {
         try {
           const checkoutResponse = await publicApi.createCheckout(organization.slug, result.booking.id);
@@ -81,6 +83,7 @@ export default function BookingForm({ service, slot, organization }: BookingForm
       }
       
       setIsSubmitted(true);
+      setBookingResult(result);
       
       toast({
         title: "Rezervace byla úspěšně vytvořena",
@@ -92,6 +95,23 @@ export default function BookingForm({ service, slot, organization }: BookingForm
         description: error.message || "Něco se pokazilo",
         variant: "destructive"
       });
+    }
+  };
+
+  const handleOptionalPayment = async () => {
+    if (!bookingResult?.booking?.id) return;
+    
+    setIsPaymentLoading(true);
+    try {
+      const checkoutResponse = await publicApi.createCheckout(organization.slug, bookingResult.booking.id);
+      window.location.href = checkoutResponse.url;
+    } catch (error: any) {
+      toast({
+        title: "Chyba při přesměrování na platbu",
+        description: error.message || "Zkuste to prosím znovu",
+        variant: "destructive"
+      });
+      setIsPaymentLoading(false);
     }
   };
 
@@ -110,6 +130,34 @@ export default function BookingForm({ service, slot, organization }: BookingForm
             {format(new Date(slot.start), "d. MMMM yyyy 'v' HH:mm", { locale: cs })}
           </strong>
         </p>
+        
+        {/* Optional payment section */}
+        {bookingResult?.optionalPayment && service.priceCzk && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <h3 className="font-medium text-blue-900 mb-2">Chcete zaplatit online?</h3>
+            <p className="text-sm text-blue-700 mb-3">
+              Můžete zaplatit online kartou nebo si nechat službu na místě.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Button
+                onClick={handleOptionalPayment}
+                disabled={isPaymentLoading}
+                className="bg-blue-600 hover:bg-blue-700"
+                data-testid="button-pay-online"
+              >
+                {isPaymentLoading ? "Přesměrovávám..." : `Zaplatit online (${service.priceCzk} Kč)`}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => window.location.href = '/'}
+                data-testid="button-pay-later"
+              >
+                Zaplatím na místě
+              </Button>
+            </div>
+          </div>
+        )}
+        
         <p className="text-sm text-slate-500">
           Na váš e-mail bude zasláno potvrzení s dalšími informacemi.
         </p>
