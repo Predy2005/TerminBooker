@@ -12,19 +12,36 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Building2 } from "lucide-react";
+import { Save, Building2, Upload, Palette, Shield, CreditCard } from "lucide-react";
+import { ObjectUploader } from "@/components/ObjectUploader";
+import { apiRequest } from "@/lib/queryClient";
 import { organizationApi } from "@/lib/api";
 
 const organizationSchema = z.object({
   name: z.string().min(1, "Název organizace je povinný"),
   slug: z.string().min(1, "URL adresa je povinná").regex(/^[a-z0-9-]+$/, "URL může obsahovat pouze malá písmena, číslice a pomlčky"),
   timezone: z.string().min(1, "Časové pásmo je povinné"),
-  language: z.string().min(1, "Jazyk je povinný")
+  language: z.string().min(1, "Jazyk je povinný"),
+  // Business verification fields
+  businessIco: z.string().optional(),
+  businessDic: z.string().optional(),
+  businessAddress: z.string().optional(),
+  businessCity: z.string().optional(),
+  businessZip: z.string().optional(),
+  businessCountry: z.string().optional(),
+  businessPhone: z.string().optional(),
+  bankAccountNumber: z.string().optional(),
+  bankCode: z.string().optional(),
+  // Visual customization
+  primaryColor: z.string().optional(),
+  secondaryColor: z.string().optional(),
+  accentColor: z.string().optional()
 });
 
 export default function Settings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [logoUrl, setLogoUrl] = useState<string>("");
 
   const { data: organization, isLoading } = useQuery({
     queryKey: ["/api/org"],
@@ -37,7 +54,11 @@ export default function Settings() {
       name: "",
       slug: "",
       timezone: "Europe/Prague",
-      language: "cs"
+      language: "cs",
+      businessCountry: "CZ",
+      primaryColor: "#0f172a",
+      secondaryColor: "#64748b", 
+      accentColor: "#3b82f6"
     }
   });
 
@@ -48,7 +69,19 @@ export default function Settings() {
         name: organization.name,
         slug: organization.slug,
         timezone: organization.timezone || "Europe/Prague",
-        language: organization.language || "cs"
+        language: organization.language || "cs",
+        businessIco: organization.businessIco || "",
+        businessDic: organization.businessDic || "",
+        businessAddress: organization.businessAddress || "",
+        businessCity: organization.businessCity || "",
+        businessZip: organization.businessZip || "",
+        businessCountry: organization.businessCountry || "CZ",
+        businessPhone: organization.businessPhone || "",
+        bankAccountNumber: organization.bankAccountNumber || "",
+        bankCode: organization.bankCode || "",
+        primaryColor: organization.primaryColor || "#0f172a",
+        secondaryColor: organization.secondaryColor || "#64748b",
+        accentColor: organization.accentColor || "#3b82f6"
       });
     }
   }, [organization, form]);
@@ -70,6 +103,48 @@ export default function Settings() {
       });
     }
   });
+
+  // Logo upload handlers
+  const handleGetUploadParameters = async () => {
+    const response = await apiRequest("POST", "/api/objects/upload");
+    return {
+      method: "PUT" as const,
+      url: response.uploadURL,
+    };
+  };
+
+  const handleLogoUploadComplete = async (result: any) => {
+    if (result.successful && result.successful.length > 0) {
+      const uploadedFile = result.successful[0];
+      const logoURL = uploadedFile.uploadURL;
+      
+      try {
+        // Update logo on server
+        const response = await apiRequest("PUT", "/api/logo", { logoURL });
+        setLogoUrl(response.logoUrl);
+        
+        // Invalidate organization query to refresh data
+        queryClient.invalidateQueries({ queryKey: ["/api/org"] });
+        
+        toast({
+          title: "Logo nahráno",
+          description: "Logo bylo úspěšně nahráno a uloženo."
+        });
+      } catch (error: any) {
+        toast({
+          title: "Chyba při ukládání loga",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  React.useEffect(() => {
+    if (organization?.logoUrl) {
+      setLogoUrl(organization.logoUrl);
+    }
+  }, [organization]);
 
   const onSubmit = (data: z.infer<typeof organizationSchema>) => {
     updateOrganization.mutate(data);
@@ -204,6 +279,372 @@ export default function Settings() {
                     </div>
                   </form>
                 </Form>
+              </CardContent>
+            </Card>
+
+            {/* Logo Upload Section */}
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Upload className="h-5 w-5" />
+                  Logo organizace
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {logoUrl && (
+                    <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg">
+                      <img 
+                        src={logoUrl.startsWith('/objects/') ? `/api${logoUrl}` : logoUrl} 
+                        alt="Logo organizace" 
+                        className="w-16 h-16 object-contain bg-white rounded border" 
+                      />
+                      <div className="text-sm text-slate-600">
+                        <p>Aktuální logo</p>
+                        <p className="text-xs text-slate-500">Nahráno</p>
+                      </div>
+                    </div>
+                  )}
+                  <ObjectUploader
+                    maxNumberOfFiles={1}
+                    maxFileSize={5242880} // 5MB
+                    onGetUploadParameters={handleGetUploadParameters}
+                    onComplete={handleLogoUploadComplete}
+                    buttonClassName="w-full"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Upload className="h-4 w-4" />
+                      {logoUrl ? "Změnit logo" : "Nahrát logo"}
+                    </div>
+                  </ObjectUploader>
+                  <p className="text-sm text-slate-500">
+                    Podporované formáty: PNG, JPG, SVG. Maximální velikost: 5MB.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Business Verification Section */}
+            <Card className="mt-6 border-orange-200 bg-orange-50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-orange-800">
+                  <Shield className="h-5 w-5" />
+                  Ověření podnikatelských údajů
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <div className="space-y-6">
+                    <div className="bg-orange-100 p-4 rounded-lg border border-orange-200">
+                      <p className="text-sm text-orange-800 font-medium mb-2">
+                        Proč potřebujeme tyto údaje?
+                      </p>
+                      <p className="text-sm text-orange-700">
+                        Pro prevenci podvodných prodejů požadujeme ověření všech obchodních údajů. 
+                        Tyto informace budou použity pouze pro účely compliance a nebudou sdíleny s třetími stranami.
+                      </p>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="businessIco"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>IČO</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="12345678" data-testid="input-business-ico" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="businessDic"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>DIČ</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="CZ12345678" data-testid="input-business-dic" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="businessPhone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Telefon</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="+420 123 456 789" data-testid="input-business-phone" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="businessCountry"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Země</FormLabel>
+                            <FormControl>
+                              <Select onValueChange={field.onChange} value={field.value} data-testid="select-business-country">
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="CZ">Česká republika</SelectItem>
+                                  <SelectItem value="SK">Slovensko</SelectItem>
+                                  <SelectItem value="AT">Rakousko</SelectItem>
+                                  <SelectItem value="DE">Německo</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="businessAddress"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Adresa</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Wenceslas Square 1" data-testid="input-business-address" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="businessCity"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Město</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Praha" data-testid="input-business-city" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="businessZip"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>PSČ</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="110 00" data-testid="input-business-zip" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                </Form>
+              </CardContent>
+            </Card>
+
+            {/* Bank Account Section */}
+            <Card className="mt-6 border-blue-200 bg-blue-50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-blue-800">
+                  <CreditCard className="h-5 w-5" />
+                  Bankovní údaje pro ověření
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <div className="space-y-6">
+                    <div className="bg-blue-100 p-4 rounded-lg border border-blue-200">
+                      <p className="text-sm text-blue-800 font-medium mb-2">
+                        Bankovní účet pro anti-fraud ověření
+                      </p>
+                      <p className="text-sm text-blue-700">
+                        Bankovní údaje používáme pouze pro ověření totožnosti a prevenci podvodů. 
+                        Nebudeme z tohoto účtu nic strhávat ani na něj posílat.
+                      </p>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="bankAccountNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Číslo účtu</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="123456789/0100" data-testid="input-bank-account" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="bankCode"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Kód banky</FormLabel>
+                            <FormControl>
+                              <Select onValueChange={field.onChange} value={field.value} data-testid="select-bank-code">
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="0100">Komerční banka (0100)</SelectItem>
+                                  <SelectItem value="0300">Československá obchodní banka (0300)</SelectItem>
+                                  <SelectItem value="0600">GE Money Bank (0600)</SelectItem>
+                                  <SelectItem value="2010">Fio banka (2010)</SelectItem>
+                                  <SelectItem value="2700">UniCredit Bank (2700)</SelectItem>
+                                  <SelectItem value="5500">Raiffeisenbank (5500)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                </Form>
+              </CardContent>
+            </Card>
+
+            {/* Color Customization Section - PRO only */}
+            <Card className="mt-6 border-purple-200 bg-purple-50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-purple-800">
+                  <Palette className="h-5 w-5" />
+                  Přizpůsobení barev
+                  <span className="ml-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs px-2 py-1 rounded-full">
+                    PRO
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {organization?.plan === 'pro' ? (
+                  <Form {...form}>
+                    <div className="space-y-6">
+                      <p className="text-sm text-purple-700">
+                        Přizpůsobte barvy pro vaši rezervační stránku podle vašeho brandingu.
+                      </p>
+
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="primaryColor"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Hlavní barva</FormLabel>
+                              <FormControl>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="color"
+                                    value={field.value || "#0f172a"}
+                                    onChange={field.onChange}
+                                    className="w-12 h-10 border rounded cursor-pointer"
+                                    data-testid="input-primary-color"
+                                  />
+                                  <Input 
+                                    {...field} 
+                                    placeholder="#0f172a"
+                                    className="flex-1"
+                                  />
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="secondaryColor"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Druhá barva</FormLabel>
+                              <FormControl>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="color"
+                                    value={field.value || "#64748b"}
+                                    onChange={field.onChange}
+                                    className="w-12 h-10 border rounded cursor-pointer"
+                                    data-testid="input-secondary-color"
+                                  />
+                                  <Input 
+                                    {...field} 
+                                    placeholder="#64748b"
+                                    className="flex-1"
+                                  />
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="accentColor"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Akcentová barva</FormLabel>
+                              <FormControl>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="color"
+                                    value={field.value || "#3b82f6"}
+                                    onChange={field.onChange}
+                                    className="w-12 h-10 border rounded cursor-pointer"
+                                    data-testid="input-accent-color"
+                                  />
+                                  <Input 
+                                    {...field} 
+                                    placeholder="#3b82f6"
+                                    className="flex-1"
+                                  />
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+                  </Form>
+                ) : (
+                  <div className="text-center py-8">
+                    <Palette className="mx-auto h-12 w-12 text-purple-300 mb-4" />
+                    <h3 className="text-lg font-medium text-purple-800 mb-2">
+                      Přizpůsobení barev
+                    </h3>
+                    <p className="text-purple-600 mb-4">
+                      Tato funkce je dostupná pouze pro PRO předplatitele.
+                    </p>
+                    <Button variant="outline" className="border-purple-300 text-purple-700 hover:bg-purple-100">
+                      Upgradovat na PRO
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

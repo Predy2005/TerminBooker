@@ -17,6 +17,21 @@ export const organizations = pgTable("organizations", {
   stripeSubscriptionId: text("stripe_subscription_id"),
   stripeAccountId: text("stripe_account_id"),
   stripeOnboardingStatus: text("stripe_onboarding_status").notNull().default("pending"),
+  // Business verification fields
+  businessIco: text("business_ico"), // IČO
+  businessDic: text("business_dic"), // DIČ 
+  businessAddress: text("business_address"),
+  businessCity: text("business_city"),
+  businessZip: text("business_zip"),
+  businessCountry: text("business_country").default("CZ"),
+  businessPhone: text("business_phone"),
+  bankAccountNumber: text("bank_account_number"),
+  bankCode: text("bank_code"),
+  // Visual customization
+  logoUrl: text("logo_url"),
+  primaryColor: text("primary_color").default("#0f172a"), // slate-900
+  secondaryColor: text("secondary_color").default("#64748b"), // slate-500
+  accentColor: text("accent_color").default("#3b82f6"), // blue-500
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`)
 });

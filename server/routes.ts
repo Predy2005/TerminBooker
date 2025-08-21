@@ -6,6 +6,7 @@ import fastifyCookie from "@fastify/cookie";
 import fastifyRateLimit from "@fastify/rate-limit";
 import fastifyCors from "@fastify/cors";
 import { storage } from "./storage";
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { 
   hashPassword, 
   verifyPassword, 
@@ -38,7 +39,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
 }
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2023-10-16",
+  apiVersion: "2025-07-30.basil",
 });
 
 const checkoutRequestSchema = z.object({
@@ -831,6 +832,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return result;
     } catch (error: any) {
       return reply.status(400).send({ message: error.message || "Chyba při vytváření portálu" });
+    }
+  });
+
+  // Object storage routes
+  server.get("/public-objects/*", async (request, reply) => {
+    const filePath = (request.params as any)['*'];
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const file = await objectStorageService.searchPublicObject(filePath);
+      if (!file) {
+        return reply.status(404).send({ message: "File not found" });
+      }
+      await objectStorageService.downloadObject(file, reply.raw as any);
+    } catch (error) {
+      console.error("Error searching for public object:", error);
+      return reply.status(500).send({ message: "Internal server error" });
+    }
+  });
+
+  server.post("/objects/upload", async (request, reply) => {
+    try {
+      await requireAuth(request, reply);
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      return { uploadURL };
+    } catch (error: any) {
+      return reply.status(500).send({ message: error.message || "Error getting upload URL" });
+    }
+  });
+
+  server.put("/logo", async (request, reply) => {
+    try {
+      const user = await requireAuth(request, reply);
+      const { logoURL } = request.body as { logoURL: string };
+      
+      if (!logoURL) {
+        return reply.status(400).send({ message: "logoURL is required" });
+      }
+
+      const objectStorageService = new ObjectStorageService();
+      const objectPath = objectStorageService.normalizeObjectEntityPath(logoURL);
+      
+      // Update organization with logo URL
+      await storage.updateOrganization(user.organizationId, { logoUrl: objectPath });
+      
+      return { logoUrl: objectPath };
+    } catch (error: any) {
+      console.error("Error setting logo:", error);
+      return reply.status(500).send({ message: "Internal server error" });
     }
   });
 
