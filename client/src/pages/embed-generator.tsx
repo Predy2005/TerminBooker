@@ -8,15 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function EmbedGenerator() {
   const { toast } = useToast();
   const [config, setConfig] = useState({
-    service: "",
+    service: "none",
     lang: "cs",
     theme: "light",
     accent: "#3b82f6",
@@ -35,12 +34,12 @@ export default function EmbedGenerator() {
   });
 
   const generateEmbedCode = () => {
-    if (!organization?.slug) return "";
+    if (!(organization as any)?.slug) return "";
 
     const attributes = [
       `src="${window.location.origin}/embed.js"`,
-      `data-org="${organization.slug}"`,
-      config.service && `data-service="${config.service}"`,
+      `data-org="${(organization as any).slug}"`,
+      config.service && config.service !== "none" && `data-service="${config.service}"`,
       config.lang !== "cs" && `data-lang="${config.lang}"`,
       config.theme !== "light" && `data-theme="${config.theme}"`,
       config.accent !== "#3b82f6" && `data-accent="${config.accent}"`,
@@ -69,8 +68,8 @@ export default function EmbedGenerator() {
     }
   };
 
-  const previewUrl = organization?.slug 
-    ? `${window.location.origin}/embed?org=${organization.slug}${config.service ? `&service=${config.service}` : ''}&lang=${config.lang}&theme=${config.theme}&accent=${encodeURIComponent(config.accent)}`
+  const previewUrl = (organization as any)?.slug 
+    ? `${window.location.origin}/embed?org=${(organization as any).slug}${config.service && config.service !== "none" ? `&service=${config.service}` : ''}&lang=${config.lang}&theme=${config.theme}&accent=${encodeURIComponent(config.accent)}`
     : '';
 
   return (
@@ -129,8 +128,8 @@ export default function EmbedGenerator() {
                             <SelectValue placeholder="Žádná - zákazník si vybere" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Žádná - zákazník si vybere</SelectItem>
-                            {services.map((service: any) => (
+                            <SelectItem value="none">Žádná - zákazník si vybere</SelectItem>
+                            {(services as any[]).map((service: any) => (
                               <SelectItem key={service.id} value={service.id}>
                                 {service.name} ({service.duration}min, {service.price}Kč)
                               </SelectItem>
@@ -229,7 +228,7 @@ export default function EmbedGenerator() {
                       <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                         <h3 className="font-medium text-green-900 mb-2">Vaše URL adresa</h3>
                         <p className="text-sm text-green-800 font-mono break-all">
-                          {organization?.slug ? `${window.location.origin}/booking/${organization.slug}` : 'Načítám...'}
+                          {(organization as any)?.slug ? `${window.location.origin}/booking/${(organization as any).slug}` : 'Načítám...'}
                         </p>
                       </div>
 
