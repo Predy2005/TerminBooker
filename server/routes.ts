@@ -438,6 +438,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Public routes
+  // Embed widget loader
+  server.get("/embed.js", async (request, reply) => {
+    try {
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      const embedScript = await fs.readFile(path.join(process.cwd(), 'server', 'embed.js'), 'utf-8');
+      
+      reply
+        .header('Content-Type', 'application/javascript')
+        .header('Cache-Control', 'public, max-age=3600')
+        .send(embedScript);
+    } catch (error) {
+      return reply.status(500).send('Embed script not found');
+    }
+  });
+
+  server.get("/public/org/:orgSlug", async (request, reply) => {
+    const { orgSlug } = request.params as { orgSlug: string };
+    
+    const organization = await storage.getOrganizationBySlug(orgSlug);
+    if (!organization) {
+      return reply.status(404).send({ message: "Organizace nebyla nalezena" });
+    }
+    
+    return organization;
+  });
+
   server.get("/public/:orgSlug/services", async (request, reply) => {
     const { orgSlug } = request.params as { orgSlug: string };
     

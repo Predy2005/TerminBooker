@@ -1,0 +1,85 @@
+BOOKLI.CZ — EMBED WIDGET PRO REZERVAČNÍ FORMULÁŘ
+Verze: 1.0 (2025-08-21)
+
+===========================================================
+ÚČEL
+===========================================================
+Cílem je umožnit vložení rezervačního formuláře na libovolný web
+pomocí jednoho <script> tagu. Vložený skript vytvoří sandboxovaný
+iframe, který načte veřejný rezervační formulář pro danou organizaci.
+
+===========================================================
+1) VLOŽENÍ DO STRÁNEK
+===========================================================
+Do HTML zákazník vloží pouze tento kód:
+
+<script
+  src="https://app.bookli.cz/embed.js"
+  data-org="demo-salon"
+  data-service=""
+  data-lang="cs"
+  data-theme="light"
+  data-accent="#00bbff"
+  data-width="100%"
+  data-height="auto"
+  defer
+></script>
+
+Parametry:
+- data-org: slug organizace (povinné)
+- data-service: ID/slug služby (volitelné)
+- data-lang: jazyk (cs/en)
+- data-theme: light/dark
+- data-accent: hex barva zvýraznění
+- data-width: šířka widgetu (px nebo %)
+- data-height: výška (auto nebo px)
+
+===========================================================
+2) CHOVÁNÍ WIDGETU
+===========================================================
+- Skript vloží <div id="bookli-root"> a do něj <iframe>.
+- iframe načítá https://app.bookli.cz/embed?org=...&service=...
+- Auto-resize: vnitřní stránka posílá výšku přes postMessage.
+- Stripe Checkout: vnitřní stránka pošle parentu postMessage('openCheckout', url),
+  parent otevře url v nové záložce.
+- Fallback: pokud není JS, zobrazí se odkaz "Otevřít rezervace".
+
+===========================================================
+3) SERVEROVÉ ENDPOINTY
+===========================================================
+GET /embed.js
+- Servíruje loader script (viz ukázka kódu).
+- Vytvoří iframe se sandboxem a nastaví event listener na postMessage.
+
+GET /embed
+- Vrací HTML (React/SSR nebo Twig), které zobrazuje rezervační formulář
+  v embed režimu (bez header/footer).
+- Uvnitř stránky skript měří výšku a posílá ji parentu.
+
+===========================================================
+4) BEZPEČNOST
+===========================================================
+- iframe je sandboxovaný (allow-forms, allow-scripts, allow-popups, allow-top-navigation-by-user-activation).
+- postMessage ověřuje origin (jen https://app.bookli.cz).
+- Checkout se otevírá v nové záložce (top-level context).
+- Rate-limit na veřejném API platí i pro embed.
+- CSP pro /embed přísné (povol jen vlastní zdroje + Stripe).
+
+===========================================================
+5) ADMIN – GENERÁTOR SNIPPETU
+===========================================================
+V administraci přidat stránku /dashboard/embed:
+- Formulář s volbou služby, jazyka, vzhledu.
+- Tlačítko "Vygenerovat kód" → textarea s hotovým <script ...>
+- Tlačítko "Kopírovat" pro snadné vložení do webu.
+
+===========================================================
+6) IMPLEMENTAČNÍ KROKY
+===========================================================
+1. Přidej /embed.js (loader) a /embed (iframe stránka).
+2. Do /:orgSlug použij stejný formulář, ale v embed módu bez hlavičky.
+3. Implementuj postMessage pro height a openCheckout.
+4. V adminu generuj snippet pro uživatele.
+
+===========================================================
+KONEC DOKUMENTU

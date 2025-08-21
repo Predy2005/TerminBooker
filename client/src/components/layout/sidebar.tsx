@@ -9,7 +9,8 @@ import {
   Ban, 
   Settings, 
   CreditCard,
-  LogOut 
+  LogOut,
+  Code
 } from "lucide-react";
 
 export default function Sidebar() {
@@ -23,6 +24,7 @@ export default function Sidebar() {
     { name: "Služby", href: "/app/services", icon: Bell },
     { name: "Dostupnost", href: "/app/availability", icon: Clock },
     { name: "Blokace", href: "/app/blackouts", icon: Ban },
+    { name: "Embed Widget", href: "/app/embed", icon: Code },
     { name: "Fakturace", href: "/app/billing", icon: CreditCard },
     { name: "Nastavení platební brány", href: "/app/billing-symfony", icon: CreditCard },
     { name: "Cenové plány", href: "/app/pricing", icon: CreditCard },
