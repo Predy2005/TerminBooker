@@ -55,7 +55,7 @@ export default function Bookings() {
   });
 
   const updateBooking = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { status?: string; note?: string } }) =>
+    mutationFn: ({ id, data }: { id: string; data: { status?: "PENDING" | "CONFIRMED" | "CANCELLED"; note?: string } }) =>
       bookingsApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
@@ -225,7 +225,7 @@ export default function Bookings() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Všechny služby</SelectItem>
-                  {services.map((service) => (
+                  {services.map((service: Service) => (
                     <SelectItem key={service.id} value={service.id}>
                       {service.name}
                     </SelectItem>
@@ -275,7 +275,7 @@ export default function Bookings() {
             </Card>
           ) : (
             <div className="space-y-4">
-              {bookings.map((booking) => (
+              {bookings.map((booking: Booking) => (
                 <Card key={booking.id} data-testid={`booking-${booking.id}`}>
                   <CardContent className="pt-4">
                     <div className="flex items-start justify-between">

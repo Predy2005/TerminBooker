@@ -324,6 +324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       return { slug };
     } catch (error: any) {
+      console.error("Error generating slug:", error);
       return reply.status(400).send({ message: error.message || "Chyba při generování URL" });
     }
   });

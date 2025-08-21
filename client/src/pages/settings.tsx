@@ -150,11 +150,13 @@ export default function Settings() {
 
   // Auto-generate slug when name changes
   const handleNameChange = async (name: string) => {
-    if (name) {
+    if (name && name.trim().length > 0) {
       try {
-        const response: any = await apiRequest("POST", "/api/org/generate-slug", { name });
-        form.setValue("slug", response.slug);
-        await checkSlugAvailability(response.slug);
+        const response: any = await apiRequest("POST", "/api/org/generate-slug", { name: name.trim() });
+        if (response.slug) {
+          form.setValue("slug", response.slug);
+          await checkSlugAvailability(response.slug);
+        }
       } catch (error) {
         console.error("Error generating slug:", error);
       }
