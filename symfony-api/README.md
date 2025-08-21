@@ -1,86 +1,126 @@
-# Bookli.cz Symfony API
+# Bookli Symfony REST API
 
-Toto je REST API pro Bookli.cz rezervační systém postavený na Symfony 6.2.
+Alternativní backend implementace pro Bookli rezervační systém s podporou Stripe Connect.
 
 ## Instalace
 
 1. Nainstalujte závislosti:
 ```bash
+cd symfony-api
 composer install
 ```
 
-2. Nakonfigurujte databázi v `.env`:
+2. Nastavte proměnné prostředí v `.env`:
 ```env
-DATABASE_URL="postgresql://username:password@127.0.0.1:5432/bookli_db?serverVersion=13&charset=utf8"
-```
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5432/bookli?serverVersion=15"
 
-3. Nakonfigurujte Stripe:
-```env
+# Stripe
 STRIPE_SECRET_KEY=sk_test_...
-STRIPE_PUBLIC_KEY=pk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
 STRIPE_WEBHOOK_SECRET_CONNECT=whsec_...
+
+# JWT
+JWT_SECRET_KEY=%kernel.project_dir%/config/jwt/private.pem
+JWT_PUBLIC_KEY=%kernel.project_dir%/config/jwt/public.pem
+JWT_PASSPHRASE=bookli2025
+
+# Frontend URL
+FRONTEND_URL=http://localhost:5000
+
+# CORS
+CORS_ALLOW_ORIGIN='^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$'
 ```
 
-4. Vytvořte databázi a spusťte migrace:
+3. Vygenerujte JWT klíče:
 ```bash
-php bin/console doctrine:database:create
-php bin/console doctrine:migrations:migrate
+mkdir -p config/jwt
+openssl genrsa -out config/jwt/private.pem -aes256 -passout pass:bookli2025 2048
+openssl rsa -pubout -in config/jwt/private.pem -passin pass:bookli2025 -out config/jwt/public.pem
 ```
 
-5. Spusťte development server:
+4. Spusťte migrace:
 ```bash
-symfony server:start
+php bin/console doctrine:migrations:migrate --no-interaction
+```
+
+5. Spusťte server:
+```bash
+php bin/console server:run 0.0.0.0:8000
 ```
 
 ## API Endpointy
 
 ### Autentizace
-- `POST /api/auth/register` - Registrace nové organizace a administrátora
-- `POST /api/auth/login` - Přihlášení uživatele
-- `GET /api/auth/me` - Informace o aktuálním uživateli
+- `POST /api/auth/login` - Přihlášení
+- `POST /api/auth/register` - Registrace
 
 ### Organizace
-- `GET /api/org` - Detail organizace
-- `PATCH /api/org` - Aktualizace organizace
+- `GET /api/org` - Získání dat organizace
+- `PUT /api/org` - Aktualizace organizace
 
 ### Služby
 - `GET /api/services` - Seznam služeb
 - `POST /api/services` - Vytvoření služby
-- `PATCH /api/services/{id}` - Aktualizace služby
+- `PUT /api/services/{id}` - Aktualizace služby
 - `DELETE /api/services/{id}` - Smazání služby
 
-### Stripe Connect
-- `POST /api/billing/connect/create` - Vytvoření Stripe Express účtu
-- `POST /api/billing/connect/webhook` - Webhook pro Stripe Connect události
-- `GET /api/billing/status` - Status plateb a předplatného
+### Stripe Connect Billing
+- `POST /api/billing/connect/create` - Vytvoření/obnovení Stripe Express účtu
+- `GET /api/billing/connect/status` - Stav Stripe Connect účtu
+- `POST /api/billing/connect/webhook` - Webhook pro Stripe události
 
-## Autentizace
-
-API používá JWT tokeny. Po přihlášení obdržíte token, který musíte posílat v Authorization header:
-
-```
-Authorization: Bearer <token>
-```
-
-## Databázová struktura
-
-- **organizations** - Organizace/firmy
-- **users** - Administrátoři organizací
-- **services** - Nabízené služby
-- **availability_templates** - Šablony dostupnosti
-- **blackouts** - Nedostupné termíny
-- **bookings** - Rezervace zákazníků
+### Rezervace
+- `GET /api/bookings` - Seznam rezervací
+- `POST /api/bookings` - Vytvoření rezervace
+- `PUT /api/bookings/{id}` - Aktualizace rezervace
 
 ## Stripe Connect Integrace
 
-API podporuje Stripe Connect Express účty pro příjem plateb:
+### Nastavení
 
-1. Organizace vytvoří Stripe Express účet
-2. Projde onboarding procesem
-3. Může přijímat platby od zákazníků
-4. Webhooky automaticky aktualizují status účtu
+1. V Stripe Dashboardu zapněte Connect → Express
+2. Nastavte webhook URL: `https://your-domain.com/api/billing/connect/webhook`
+3. Zapněte "Listen to events on connected accounts"
+4. Přidejte event: `account.updated`
+5. Zkopírujte webhook signing secret do `STRIPE_WEBHOOK_SECRET_CONNECT`
 
-## CORS
+### Workflow
 
-CORS je nakonfigurován pro frontend aplikaci. Pro produkční nasazení upravte `CORS_ALLOW_ORIGIN` v `.env`.
+1. **Vytvoření účtu**: `POST /api/billing/connect/create`
+   - Pokud účet neexistuje, vytvoří nový Stripe Express účet
+   - Vygeneruje Account Link pro onboarding
+   - Vrátí URL pro přesměrování
+
+2. **Onboarding**: Uživatel dokončí ověření ve Stripe
+   - Po úspěchu: přesměrování na `/app/billing/connect/success`
+   - Po chybě: přesměrování na `/app/billing/connect/refresh`
+
+3. **Webhook**: Stripe odesílá `account.updated` eventy
+   - API aktualizuje stav v databázi (`pending`/`restricted`/`active`)
+   - Pouze když `charges_enabled && payouts_enabled` → `active`
+
+4. **Status check**: `GET /api/billing/connect/status`
+   - Frontend kontroluje aktuální stav účtu
+   - Podle stavu zobrazuje příslušné UI
+
+## Databázové schéma
+
+Schema je sdíleno s Node.js backendem. Klíčová pole pro Stripe Connect:
+
+- `organizations.stripe_account_id` - ID Stripe Express účtu
+- `organizations.stripe_onboarding_status` - Stav onboardingu (`pending`, `restricted`, `active`)
+
+## Bezpečnost
+
+- JWT tokeny pro autentizaci
+- CORS konfigurace
+- Webhook signature verification
+- Organization-based data isolation
+- Rate limiting (doporučeno pro produkci)
+
+## Testování
+
+Použijte Stripe test mode pro vývoj:
+- Test API klíče začínají `sk_test_`
+- Webhook události lze simulovat v Stripe CLI
+- Express onboarding lze dokončit s test daty

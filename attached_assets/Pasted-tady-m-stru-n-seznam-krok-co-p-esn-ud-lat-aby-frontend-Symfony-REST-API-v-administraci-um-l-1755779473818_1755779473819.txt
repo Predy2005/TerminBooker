@@ -1,0 +1,68 @@
+tady máš stručný seznam kroků, co přesně udělat, aby frontend + Symfony REST API v administraci uměly vytvářet Stripe sub‑účty (Connect Express).
+
+Kroky (end‑to‑end)
+
+1) Stripe – předpoklady (Dashboard)
+	1.	Zapni Connect (Express): Settings → Connect → Enable → Express; vyplň název platformy, logo, support kontakty.
+	2.	Připrav API klíč (test/live) a ulož si ho.
+	3.	Přidej webhook pro Connect události:
+	•	URL: https://tvuj-server.cz/api/connect/webhook
+	•	Zapni „Listen to events on connected accounts“
+	•	Minimálně event: account.updated (volitelně account.application.deauthorized apod.)
+	•	Ulož Signing secret.
+	4.	(Volitelně) webhook pro platby rezervací necháš zvlášť, to se netýká samotného zřízení sub‑účtu.
+
+2) Server (Symfony API) – konfigurace
+	5.	Do env/secrets přidej:
+	•	STRIPE_SECRET_KEY
+	•	STRIPE_WEBHOOK_SECRET_CONNECT
+	•	CONNECT_RETURN_URL (kam se Stripe vrátí po onboardingu)
+	•	CONNECT_REFRESH_URL (kam Stripe pošle uživatele při chybě/expiraci linku)
+	6.	Ujisti se, že máš pdo_pgsql a připojení na Postgres (Neon/Supabase) v DATABASE_URL.
+
+3) Server (Symfony API) – data
+	7.	Rozšiř tabulku organizací o:
+	•	stripe_account_id (TEXT, nullable)
+	•	stripe_onboarding_status (TEXT, default pending, hodnoty: pending|restricted|active)
+	8.	(Volitelné) Přidej tabulku pro logování webhooků a idempotenci eventů.
+
+4) Server (Symfony API) – endpoints (bez kódu, jen požadavky)
+	9.	POST /api/connect/create
+Účel: založit/vrátit Stripe connected account (Express) a vrátit onboarding URL.
+Chování:
+	•	Pokud organization.stripe_account_id chybí → založ účet (type=express, capabilities: card_payments+transfers), ulož stripe_account_id.
+	•	Vytvoř Account Link (type=account_onboarding, refresh_url, return_url) a vrať { url }.
+	•	Pokud účet už existuje, vygeneruj nový Account Link a vrať { url }.
+Autorizace: jen vlastník/admin organizace.
+	10.	GET /api/connect/status
+Účel: vrátit aktuální stav onboardingu (z DB): { stripe_account_id, status }.
+Použití: frontend pro vykreslení badge a gatingu.
+	11.	POST /api/connect/webhook
+Účel: přijmout Stripe account.updated (Connect).
+Chování:
+	•	Ověř podpis Stripe.
+	•	Pokud charges_enabled && payouts_enabled → nastav stripe_onboarding_status='active', jinak restricted.
+	•	Ulož id eventu (idempotence), logni payload.
+Odezva: 200 {received:true}.
+
+5) Admin UI (frontend)
+	12.	V administraci přidej stránku/sekci „Platby / Stripe“ (např. /admin/billing):
+	•	Badge Stav Stripe účtu: pending | restricted | active (volá GET /api/connect/status).
+	•	Tlačítko „Založit Stripe účet“ / „Dokončit ověření ve Stripe“: po kliknutí zavolá POST /api/connect/create, dostane {url}, otevře link (nové okno/redirect).
+	•	Info box s tím, co bude Stripe chtít (IČO, bankovní účet, doklad totožnosti…).
+	•	Dokud není stav active, nepovoluj zapínání online plateb u služeb.
+	13.	Po návratu ze Stripe na CONNECT_RETURN_URL nech frontend:
+	•	zavolat GET /api/connect/status (nebo počkat na webhook + refresh),
+	•	aktualizovat badge; pokud active, odemknout přepínače „Povolit platby“.
+
+6) Pravidla a bezpečnost
+	14.	Idempotence: pokud stripe_account_id existuje, nikdy nevytvářej nový účet—jen nový Account Link.
+	15.	Oprávnění: endpoints jen pro přihlášeného vlastníka dané organizace.
+	16.	Ověření podpisu webhooku a ukládání event.id (zabrání dvojímu zpracování).
+	17.	Gating: povolit online platby u služeb až když stripe_onboarding_status='active'.
+
+7) Testovací scénář (test mode)
+	18.	V adminu klikni „Založit Stripe účet“ → projdi Express onboarding (test data).
+	19.	Ověř, že webhook account.updated dorazí a stav se změní na active.
+	20.	Znovu otevři admin stránku → badge active.
+	21.	Zapni „Povolit online platby“ u vybrané služby (tuhle logiku už máš/napojíš později).

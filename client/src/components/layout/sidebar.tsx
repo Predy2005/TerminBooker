@@ -24,6 +24,7 @@ export default function Sidebar() {
     { name: "Dostupnost", href: "/app/availability", icon: Clock },
     { name: "Blokace", href: "/app/blackouts", icon: Ban },
     { name: "Fakturace", href: "/app/billing", icon: CreditCard },
+    { name: "Symfony API", href: "/app/billing-symfony", icon: CreditCard },
     { name: "Cenové plány", href: "/app/pricing", icon: CreditCard },
     { name: "Nastavení", href: "/app/settings", icon: Settings }
   ];

@@ -1,10 +1,14 @@
 parameters:
+    stripe_secret_key: '%env(STRIPE_SECRET_KEY)%'
+    frontend_url: '%env(FRONTEND_URL)%'
 
 services:
+    # Default autowiring and autoconfiguration for services in this file
     _defaults:
         autowire: true
         autoconfigure: true
 
+    # Makes classes in src/ available as services
     App\:
         resource: '../src/'
         exclude:
@@ -12,8 +16,15 @@ services:
             - '../src/Entity/'
             - '../src/Kernel.php'
 
-    # Stripe configuration
+    # Explicitly configure BillingController with parameters
     App\Controller\BillingController:
         arguments:
-            $stripeSecretKey: '%env(STRIPE_SECRET_KEY)%'
-            $frontendUrl: '%env(FRONTEND_URL)%'
+            $stripeSecretKey: '%stripe_secret_key%'
+            $frontendUrl: '%frontend_url%'
+
+    # Repositories
+    App\Repository\OrganizationRepository:
+        tags: ['doctrine.repository_service']
+
+    App\Repository\UserRepository:
+        tags: ['doctrine.repository_service']

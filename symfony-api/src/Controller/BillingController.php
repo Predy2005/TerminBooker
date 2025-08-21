@@ -36,17 +36,23 @@ class BillingController extends AbstractController
 
         $organization = $user->getOrganization();
 
-        // Check if account already exists
-        if ($organization->getStripeAccountId()) {
-            return $this->json(['message' => 'Stripe účet již existuje'], 400);
-        }
-
         try {
-            // Create Stripe Express account
+            // If account already exists, just create new account link
+            if ($organization->getStripeAccountId()) {
+                $accountLink = AccountLink::create([
+                    'account' => $organization->getStripeAccountId(),
+                    'return_url' => $this->frontendUrl . '/app/billing/connect/success',
+                    'refresh_url' => $this->frontendUrl . '/app/billing/connect/refresh',
+                    'type' => 'account_onboarding',
+                ]);
+
+                return $this->json(['url' => $accountLink->url]);
+            }
+
+            // Create new Stripe Express account
             $account = Account::create([
                 'type' => 'express',
                 'country' => 'CZ',
-                'business_type' => 'individual',
                 'capabilities' => [
                     'card_payments' => ['requested' => true],
                     'transfers' => ['requested' => true],
@@ -117,6 +123,22 @@ class BillingController extends AbstractController
         }
 
         return $this->json(['received' => true]);
+    }
+
+    #[Route('/connect/status', name: 'billing_connect_status', methods: ['GET'])]
+    public function connectStatus(): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return $this->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $organization = $user->getOrganization();
+
+        return $this->json([
+            'stripeAccountId' => $organization->getStripeAccountId(),
+            'status' => $organization->getStripeOnboardingStatus()
+        ]);
     }
 
     #[Route('/status', name: 'billing_status', methods: ['GET'])]

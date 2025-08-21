@@ -21,6 +21,7 @@ import Settings from "@/pages/settings";
 import Pricing from "@/pages/pricing";
 import BillingSuccess from "@/pages/billing-success";
 import BillingPage from "@/pages/billing";
+import BillingSymfonyPage from "@/pages/billing-symfony";
 import BillingConnectSuccessPage from "@/pages/billing-connect-success";
 import BillingConnectRefreshPage from "@/pages/billing-connect-refresh";
 import BookingSuccess from "@/pages/booking-success";
@@ -54,6 +55,7 @@ function Router() {
       <Route path="/app/bookings" component={Bookings} />
       <Route path="/app/settings" component={Settings} />
       <Route path="/app/billing" component={BillingPage} />
+      <Route path="/app/billing-symfony" component={BillingSymfonyPage} />
       <Route path="/app/billing/connect/success" component={BillingConnectSuccessPage} />
       <Route path="/app/billing/connect/refresh" component={BillingConnectRefreshPage} />
       <Route path="/app/pricing" component={Pricing} />
