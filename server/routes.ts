@@ -34,6 +34,16 @@ import {
 import { z } from "zod";
 import crypto from "crypto";
 import Stripe from "stripe";
+import { 
+  isDemoMode, 
+  demoOrganization, 
+  demoUser, 
+  demoServices, 
+  demoAvailability, 
+  demoBookings, 
+  demoBlackouts,
+  demoPayments 
+} from "./demoData";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
@@ -81,6 +91,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await server.register(fastifyRateLimit, {
     max: 100,
     timeWindow: "1 minute"
+  });
+
+  // Demo login endpoint
+  server.post("/auth/demo", async (request, reply) => {
+    // Simulate demo user login
+    const token = generateToken({ 
+      userId: demoUser.id, 
+      organizationId: demoOrganization.id,
+      email: demoUser.email
+    });
+    
+    setAuthCookie(reply, token);
+    
+    return reply.send({ 
+      message: "Demo přihlášení úspěšné",
+      user: { id: demoUser.id, email: demoUser.email },
+      organization: demoOrganization
+    });
   });
 
   // Auth routes (without /api prefix since Express adds it)
@@ -242,6 +270,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Organization routes
   server.get("/org", async (request, reply) => {
     const user = await requireAuth(request, reply);
+    
+    // Return demo data for demo user
+    if (user.userId === demoUser.id) {
+      return demoOrganization;
+    }
+    
     const organization = await storage.getOrganization(user.organizationId);
     return organization;
   });
@@ -332,6 +366,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Services routes
   server.get("/services", async (request, reply) => {
     const user = await requireAuth(request, reply);
+    
+    // Return demo data for demo user
+    if (user.userId === demoUser.id) {
+      return demoServices;
+    }
+    
     const services = await storage.getServices(user.organizationId);
     return services;
   });
@@ -376,6 +416,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Availability routes
   server.get("/availability", async (request, reply) => {
     const user = await requireAuth(request, reply);
+    
+    // Return demo data for demo user
+    if (user.userId === demoUser.id) {
+      return demoAvailability;
+    }
+    
     const templates = await storage.getAvailabilityTemplates(user.organizationId);
     return templates;
   });
@@ -407,6 +453,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Blackouts routes
   server.get("/blackouts", async (request, reply) => {
     const user = await requireAuth(request, reply);
+    
+    // Return demo data for demo user
+    if (user.userId === demoUser.id) {
+      return demoBlackouts;
+    }
+    
     const blackouts = await storage.getBlackouts(user.organizationId);
     return blackouts;
   });
@@ -650,6 +702,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const user = await requireAuth(request, reply);
       const query = bookingsQuerySchema.parse(request.query);
+      
+      // Return demo data for demo user
+      if (user.userId === demoUser.id) {
+        let filteredBookings = [...demoBookings];
+        
+        // Apply filters to demo data
+        if (query.from) {
+          const fromDate = new Date(query.from);
+          filteredBookings = filteredBookings.filter(booking => new Date(booking.date) >= fromDate);
+        }
+        if (query.to) {
+          const toDate = new Date(query.to);
+          filteredBookings = filteredBookings.filter(booking => new Date(booking.date) <= toDate);
+        }
+        if (query.serviceId) {
+          filteredBookings = filteredBookings.filter(booking => booking.serviceId === query.serviceId);
+        }
+        if (query.status) {
+          filteredBookings = filteredBookings.filter(booking => booking.status === query.status);
+        }
+        
+        return filteredBookings;
+      }
       
       const filters: any = {};
       if (query.from) filters.from = new Date(query.from);

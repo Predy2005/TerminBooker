@@ -16,7 +16,8 @@ import {
   CreditCard,
   Download,
   Globe,
-  Star
+  Star,
+  Play
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -35,6 +36,10 @@ export default function LandingPage() {
               <a href="#funkce" className="text-slate-600 hover:text-slate-900">Funkce</a>
               <a href="#cenik" className="text-slate-600 hover:text-slate-900">Ceník</a>
               <Link href="/docs" className="text-slate-600 hover:text-slate-900">Dokumentace</Link>
+              <Link href="/demo" className="text-slate-600 hover:text-slate-900 flex items-center gap-1">
+                <Play className="h-4 w-4" />
+                DEMO
+              </Link>
               <Link href="/app/auth/login" className="text-slate-600 hover:text-slate-900">Přihlásit se</Link>
               <Button asChild>
                 <Link href="/app/auth/register">Vyzkoušet zdarma</Link>
@@ -65,7 +70,10 @@ export default function LandingPage() {
                   </Link>
                 </Button>
                 <Button variant="outline" size="lg" className="text-lg px-8" asChild>
-                  <Link href="/demo-salon">Ukázka (demo)</Link>
+                  <Link href="/demo">
+                    <Play className="mr-2 h-5 w-5" />
+                    Vyzkoušet DEMO
+                  </Link>
                 </Button>
               </div>
               

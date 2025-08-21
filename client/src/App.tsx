@@ -28,12 +28,16 @@ import BillingConnectSuccessPage from "@/pages/billing-connect-success";
 import BillingConnectRefreshPage from "@/pages/billing-connect-refresh";
 import BookingSuccess from "@/pages/booking-success";
 import BookingCancel from "@/pages/booking-cancel";
+import DemoLogin from "@/pages/demo-login";
 
 function Router() {
   return (
     <Switch>
       {/* Landing page */}
       <Route path="/" component={LandingPage} />
+      
+      {/* Demo login */}
+      <Route path="/demo" component={DemoLogin} />
       
       {/* Static pages */}
       <Route path="/docs" component={DocsPage} />
