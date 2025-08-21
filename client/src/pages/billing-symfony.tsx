@@ -85,7 +85,7 @@ export default function BillingSymfonyPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Platby a fakturace</h1>
-        <p className="text-slate-600">Správa online plateb přes Symfony API</p>
+        <p className="text-slate-600">Nastavení a správa platební brány</p>
       </div>
 
       {/* Stripe Connect Status */}
