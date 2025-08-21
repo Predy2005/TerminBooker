@@ -1,0 +1,518 @@
+Mini Rezervační systém — SaaS MVP (Replit‑friendly) — Vite React + Node (Fastify) + PostgreSQL (bez Prisma)
+
+1) Cíl a hodnota
+
+Jednoduchý online rezervační systém pro jednotlivce a malé provozy (trenéři, kadeřníci, fotografové, malé kliniky). Umožní publikovat volné termíny, přijímat rezervace a spravovat je v přehledném dashboardu.
+	•	Hodnota: méně telefonátů a zpráv, jednoduché plánování, export do CSV, potvrzovací e‑maily.
+	•	Zaměření MVP: rychlé nasazení, jednoduché workflow, CZ lokalizace.
+
+2) Persony
+	•	Poskytovatel (Owner/Admin) – zakládá účet/„organizaci“, definuje služby, okna dostupnosti a spravuje rezervace.
+	•	Zákazník (Customer) – na veřejné stránce organizace vybere službu, termín a provede rezervaci.
+
+⸻
+
+3) Tech stack (Replit‑friendly, bez Next.js a bez Prisma)
+	•	Frontend: Vite + React 18 + TypeScript, Tailwind CSS, React Hook Form + Zod, react-router-dom.
+	•	Backend: Node 20 + Fastify (rychlé, typované) + TypeScript.
+	•	DB: PostgreSQL (doporučeno Neon/Supabase free tier).
+	•	DB klient: pg (node‑postgres) + migrace přes node-pg-migrate (či knex migrations).
+	•	Auth: JWT (HS256) v httpOnly cookie (SameSite=Lax).
+	•	Email: nodemailer + SMTP (Seznam Profi / jiný SMTP).
+	•	Rate limit: @fastify/rate-limit pro veřejné rezervace.
+	•	Build & run na Replitu: monorepo client/ + server/, skript pro paralelní start (concurrently).
+
+Struktura repozitáře
+
+mini-reservations/
+├─ client/                       # Vite React
+│  ├─ src/
+│  │  ├─ app.tsx                # Router + layout
+│  │  ├─ pages/
+│  │  │  ├─ PublicOrg.tsx       # veřejná stránka /:orgSlug
+│  │  │  ├─ Dashboard.tsx       # přehled dne/týdne
+│  │  │  ├─ Services.tsx        # CRUD služeb
+│  │  │  ├─ Availability.tsx    # šablony dostupnosti
+│  │  │  ├─ Blackouts.tsx       # blokace
+│  │  │  ├─ Bookings.tsx        # seznam + export
+│  │  │  └─ AuthLogin.tsx / AuthRegister.tsx
+│  │  ├─ components/
+│  │  ├─ lib/api.ts             # fetch wrapper
+│  │  └─ styles.css
+│  ├─ index.html
+│  └─ vite.config.ts
+├─ server/                       # Fastify API
+│  ├─ src/
+│  │  ├─ index.ts               # bootstrap fastify
+│  │  ├─ db.ts                  # připojení k PG (pg Pool)
+│  │  ├─ migrations/            # node-pg-migrate migrační skripty
+│  │  ├─ routes/
+│  │  │  ├─ auth.ts             # /api/auth/*
+│  │  │  ├─ org.ts              # /api/org
+│  │  │  ├─ services.ts         # /api/services
+│  │  │  ├─ availability.ts     # /api/availability
+│  │  │  ├─ blackouts.ts        # /api/blackouts
+│  │  │  ├─ bookings.ts         # /api/bookings (admin) + export CSV
+│  │  │  └─ public.ts           # /api/public/:orgSlug/* (services, slots, booking)
+│  │  ├─ lib/
+│  │  │  ├─ auth.ts             # JWT, hash hesla (argon2)
+│  │  │  ├─ email.ts            # nodemailer
+│  │  │  ├─ slots.ts            # generování slotů
+│  │  │  └─ validate.ts         # Zod schémata
+│  │  └─ types.d.ts
+│  ├─ package.json
+│  └─ tsconfig.json
+├─ package.json                  # root skripty (dev:client, dev:server, dev)
+└─ .replit / replit.nix          # pro Replit
+
+
+⸻
+
+4) Datový model (SQL pro PostgreSQL)
+
+Migrations: node-pg-migrate — níže jsou ukázky schématu (DDL).
+
+CREATE TABLE organizations (
+  id            TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  name          TEXT NOT NULL,
+  slug          TEXT UNIQUE NOT NULL,
+  timezone      TEXT NOT NULL DEFAULT 'Europe/Prague',
+  language      TEXT NOT NULL DEFAULT 'cs-CZ',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE users (
+  id               TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  email            TEXT UNIQUE NOT NULL,
+  password_hash    TEXT NOT NULL,
+  role             TEXT NOT NULL DEFAULT 'ADMIN',
+  organization_id  TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE services (
+  id               TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id  TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name             TEXT NOT NULL,
+  duration_min     INT  NOT NULL CHECK (duration_min BETWEEN 5 AND 480),
+  price_czk        INT,
+  is_active        BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Týdenní šablony dostupnosti (0=neděle .. 6=sobota)
+CREATE TABLE availability_templates (
+  id               TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id  TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  weekday          INT NOT NULL CHECK (weekday BETWEEN 0 AND 6),
+  start_minutes    INT NOT NULL,  -- od půlnoci
+  end_minutes      INT NOT NULL,  -- do půlnoci
+  slot_step_min    INT NOT NULL,  -- krok slotů
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE blackouts (
+  id               TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id  TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  starts_at        TIMESTAMPTZ NOT NULL,
+  ends_at          TIMESTAMPTZ NOT NULL,
+  reason           TEXT
+);
+
+CREATE TYPE booking_status AS ENUM ('PENDING','CONFIRMED','CANCELLED');
+
+CREATE TABLE bookings (
+  id               TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id  TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  service_id       TEXT NOT NULL REFERENCES services(id)       ON DELETE RESTRICT,
+  customer_name    TEXT NOT NULL,
+  customer_email   TEXT NOT NULL,
+  customer_phone   TEXT,
+  note             TEXT,
+  starts_at        TIMESTAMPTZ NOT NULL,
+  ends_at          TIMESTAMPTZ NOT NULL,
+  status           booking_status NOT NULL DEFAULT 'PENDING',
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT chk_time CHECK (starts_at < ends_at)
+);
+
+-- Unikátní překryv pro tutéž organizaci ve stejném slotu
+CREATE UNIQUE INDEX ux_bookings_org_time ON bookings(organization_id, starts_at, ends_at);
+
+
+⸻
+
+5) Generování slotů (server/lib/slots.ts)
+	1.	Na období (např. dnes → +14 dní) si pro každý den vyžádej šablony availability_templates.
+	2.	Pro každý den spočítej sloty po slot_step_min a filtruj tak, aby se celá délka služby vešla do okna start_minutes..end_minutes.
+	3.	Vyřaď kolizní sloty: existují‑li bookings se statusem ≠ CANCELLED překrývající [starts_at, ends_at).
+	4.	Vyřaď sloty spadající do blackouts.
+	5.	Zohledni timezone organizace (přepočty pomocí luxon/date-fns-tz).
+
+⸻
+
+6) API (Fastify routes)
+
+Prefix: /api.
+
+Auth
+	•	POST /api/auth/register → vytvoří organization, admin user, nastaví httpOnly cookie.
+	•	POST /api/auth/login → ověří email/heslo (argon2), vydá cookie.
+	•	POST /api/auth/logout → smaže cookie.
+
+Organizace
+	•	GET /api/org → detail přihlášené organizace.
+	•	PATCH /api/org → update name/slug/timezone/language (validace Zod).
+
+Služby
+	•	GET /api/services
+	•	POST /api/services
+	•	PATCH /api/services/:id
+	•	DELETE /api/services/:id
+
+Dostupnost & Blackouty
+	•	GET /api/availability
+	•	POST /api/availability
+	•	DELETE /api/availability/:id
+	•	GET /api/blackouts
+	•	POST /api/blackouts
+	•	DELETE /api/blackouts/:id
+
+Veřejné
+	•	GET /api/public/:orgSlug/services
+	•	GET /api/public/:orgSlug/slots?from=ISO&to=ISO&serviceId=...
+	•	POST /api/public/:orgSlug/bookings  (rate‑limit + Zod validace)
+
+Admin — rezervace
+	•	GET /api/bookings?from&to&serviceId&status
+	•	PATCH /api/bookings/:id (změna stavu, poznámka)
+	•	DELETE /api/bookings/:id (zrušení)
+	•	GET /api/bookings/export.csv?from&to&serviceId&status (Stream odpověď)
+
+⸻
+
+7) Autentizace, cookies a CORS
+	•	JWT v httpOnly cookie session, SameSite=Lax, Secure v produkci.
+	•	CORS: povolit původ klienta z Replitu (URL klienta), hlavičky Content-Type, Authorization.
+	•	Ochrana proti CSRF: same‑site cookie + double‑submit token pro citlivé POSTy (skrytý input).
+
+⸻
+
+8) Validace
+	•	Zod schémata: Service (name 2–80, duration 5–480), Booking (jméno 2–80, email validní), časy ISO8601.
+	•	Na DB úrovni: chk_time, ux_bookings_org_time.
+	•	Při vytváření rezervace nejdřív SELECT kolizí v transakci; pokud kolize, vrátit 409.
+
+⸻
+
+9) E‑maily (nodemailer)
+	•	email.ts exportuje sendBookingConfirmation(to, booking, org) a sendBookingStatusChange(...).
+	•	Šablony jednoduchý HTML (CZ). V dev režimu log do konzole; v prod SMTP ze .env.
+
+⸻
+
+10) Frontend (Vite React)
+	•	Public flow /org/:slug: výpis služeb → výběr termínu (kalendář + časy) → formulář → úspěch.
+	•	Dashboard /dashboard: přehled dne/týdne, filtry (služba, stav), CRUD služby/dostupnost/blackouty, seznam rezervací + export.
+	•	UI knihovny volitelné (Headless UI / Radix). Tailwind pro rychlost.
+
+⸻
+
+11) Akceptační kritéria MVP
+	•	Veřejný flow: vytvoření rezervace → e‑mail potvrzení (logged v dev), nedojde k dvojí rezervaci.
+	•	Admin flow: registrace, login, založení org, vytvoření služby a šablony dostupnosti, zobrazení slotů, CSV export funguje.
+	•	Rate‑limit brání spamu (např. 5/min/IP na POST booking).
+
+⸻
+
+12) Nasazení a Replit nastavení
+	•	Env proměnné (server):
+	•	DATABASE_URL=postgres://user:pass@host:5432/dbname
+	•	JWT_SECRET=...
+	•	SMTP_HOST=..., SMTP_PORT=..., SMTP_USER=..., SMTP_PASS=..., SMTP_FROM="Název <no-reply@domena.cz>"
+	•	CLIENT_ORIGIN=https://<tvoje-replit-client-url>
+	•	Env (client):
+	•	VITE_API_BASE=https://<tvoje-replit-server-url>/api
+	•	Scripts (root package.json):
+
+{
+  "scripts": {
+    "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev"
+  },
+  "devDependencies": {"concurrently": "^9"}
+}
+
+	•	Server package.json (výňatek):
+
+{
+  "type": "module",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "migrate": "node-pg-migrate -j ts -d $DATABASE_URL -m src/migrations"
+  },
+  "dependencies": {
+    "fastify": "^4",
+    "@fastify/cors": "^9",
+    "@fastify/cookie": "^9",
+    "@fastify/rate-limit": "^10",
+    "pg": "^8",
+    "argon2": "^0.31",
+    "zod": "^3",
+    "nodemailer": "^6",
+    "luxon": "^3"
+  },
+  "devDependencies": {
+    "ts-node-dev": "^2",
+    "typescript": "^5",
+    "node-pg-migrate": "^7"
+  }
+}
+
+
+⸻
+
+13) Seed a demo data
+	•	Org: Demo Salon (slug demo-salon), uživatel: admin@demo.cz / heslo „admin“ (jen dev).
+	•	Služby: Střih 30 (30), Barvení 60 (60).
+	•	Šablony: Po–Pá 09:00–17:00, krok 30 min.
+	•	2 ukázkové rezervace v budoucnu.
+
+⸻
+
+14) Budoucí PRO rozšíření
+	•	Online platby (Comgate/Stripe) → stav PAID.
+	•	Více zdrojů/kapacit (paralelní bookování), zaměstnanci.
+	•	SMS brána (Twilio/GoSMS), iCal pozvánky, Google Calendar sync.
+	•	Widget pro vložení na cizí web (iframe) + veřejné API klíče.
+
+⸻
+
+15) Milníky
+	•	M1: Auth (register/login/logout) + org CRUD.
+	•	M2: Služby + dostupnost + výpočet slotů (server) + veřejné endpointy.
+	•	M3: Rezervace end‑to‑end + e‑maily + rate‑limit.
+	•	M4: Dashboard přehled + export CSV.
+	•	M5: Polishing, validace, demo seed a dokumentace.
+
+⸻
+
+16) Další kroky (hned)
+	1.	Inicializuj monorepo (client/server) a základní skripty dev (concurrently).
+	2.	Na serveru: Fastify + @fastify/cookie, připoj pg Pool, připrav migrační framework (node-pg-migrate).
+	3.	Vytvoř první migraci s tabulkami (viz výše) a spusť na Neon/Supabase.
+	4.	Implementuj /api/auth/register a /api/auth/login (argon2 + JWT cookie).
+	5.	Na klientu: router, formuláře (React Hook Form + Zod), stránka /:orgSlug a /dashboard skeleton.
+	6.	Implementuj výpočet slotů a veřejné rezervace; přidej e‑mail potvrzení.
+
+⸻
+
+🧾 Cenové plány, platební brána a specifikace stránek (pro Replit generování)
+
+17) Cenové plány (FREE / PRO / BUSINESS)
+
+FREE (0 Kč / měsíc)
+	•	1 organizace, max. 1 služba, max. 50 rezervací/měsíc
+	•	Veřejná stránka /:orgSlug
+	•	E‑mail potvrzení rezervace (plain)
+	•	Export CSV
+
+PRO (229 Kč / měsíc)
+	•	1 organizace, až 5 služeb, 1000 rezervací/měsíc
+	•	Vypnutí brandingu
+	•	Vylepšené e‑maily (logo, vlastní odesílatel)
+	•	Blackouty + týdenní šablony
+	•	Prioritní rate‑limit (více požadavků/min)
+
+BUSINESS (649 Kč / měsíc)
+	•	Neomezené služby, neomezené rezervace/měsíc (férové použití)
+	•	Více administrátorů (do 5 uživatelů)
+	•	Příprava na integrace (Google Calendar, webhooks)
+	•	Přednostní podpora
+
+Hodnoty lze měnit přes DB/konfig. Pro test účely lze vynutit plán ručně na organizations.plan.
+
+Feature‑flags (server)
+	•	Základní kontrola: middleware načte orgPlan a předá features do requestu.
+	•	Feature map:
+
+// server/src/lib/features.ts
+export const FEATURES = {
+  FREE:     { maxServices: 1,  maxBookingsPerMonth: 50,   branding: true,  richEmail: false, admins: 1 },
+  PRO:      { maxServices: 5,  maxBookingsPerMonth: 1000, branding: false, richEmail: true,  admins: 1 },
+  BUSINESS: { maxServices: -1, maxBookingsPerMonth: -1,   branding: false, richEmail: true,  admins: 5 }
+} as const;
+
+
+⸻
+
+18) Platební brána
+
+18.1 Provider abstrakce
+	•	MVP: Stripe (snadné SDK, testovací režim).
+	•	Volitelně: Comgate (CZ), připravit rozhraní BillingProvider a implementaci stripeProvider (MVP), comgateProvider (později).
+
+18.2 Env proměnné (server)
+
+# Stripe
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRICE_PRO=price_xxx
+STRIPE_PRICE_BUSINESS=price_yyy
+BILLING_PROVIDER=stripe
+
+# (Budoucí) Comgate
+COMGATE_MERCHANT=...
+COMGATE_SECRET=...
+COMGATE_TEST=1
+
+18.3 DB schéma (migrace 0002_billing_up.sql)
+
+-- plán na organizaci (FREE/PRO/BUSINESS)
+ALTER TABLE organizations ADD COLUMN plan TEXT NOT NULL DEFAULT 'FREE';
+ALTER TABLE organizations ADD COLUMN subscription_status TEXT NOT NULL DEFAULT 'inactive';
+ALTER TABLE organizations ADD COLUMN subscription_current_period_end TIMESTAMPTZ;
+
+CREATE TABLE payments (
+  id                TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id   TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  provider          TEXT NOT NULL,     -- 'stripe' | 'comgate'
+  external_id       TEXT NOT NULL,     -- session/payment id
+  plan              TEXT NOT NULL,     -- 'PRO' | 'BUSINESS'
+  amount_cents      INT  NOT NULL,
+  currency          TEXT NOT NULL DEFAULT 'CZK',
+  status            TEXT NOT NULL,     -- 'created' | 'paid' | 'failed' | 'refunded'
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  paid_at           TIMESTAMPTZ,
+  raw_payload       JSONB
+);
+
+CREATE TABLE webhook_events (
+  id              TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider        TEXT NOT NULL,
+  event_type      TEXT NOT NULL,
+  received_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  payload         JSONB
+);
+
+18.4 API (billing)
+	•	POST /api/billing/checkout body: { plan: 'PRO'|'BUSINESS' } → vrátí { url } (Stripe Checkout URL)
+	•	POST /api/billing/webhook (bez auth) – ověření podpisu, změna organizations.plan, subscription_status, záznam do payments a webhook_events.
+	•	GET /api/billing/status → vrací aktivní plán a stav předplatného pro přihlášenou org.
+	•	GET /api/billing/portal (nepovinné) → Stripe Customer Portal (pro změnu karty/rušení).
+
+18.5 Flow
+	1.	Admin v /dashboard/billing vybere plán (PRO/BUSINESS) → volá POST /api/billing/checkout → přesměruje na Stripe Checkout.
+	2.	Platba úspěšná → Stripe přesměruje na /billing/success?session_id=....
+	3.	Stripe webhook pošle event (checkout.session.completed / invoice.paid) na /api/billing/webhook → server nastaví organizations.plan = PRO|BUSINESS, subscription_status='active' a uloží payments.
+	4.	UI v /dashboard/billing ukáže aktivní plán + možnost návratu na Free (zrušení v Portalu nebo přes podporu).
+
+V MVP využij Stripe emailové účtenky; vlastní „faktury“ lze doplnit později.
+
+⸻
+
+19) Přístupová pravidla podle plánu
+	•	Vytvoření služby (POST /api/services): kontroluj features.maxServices.
+	•	Vytvoření rezervace: měsíční limit na základě features.maxBookingsPerMonth.
+	•	Admin počet uživatelů: kontrola v CRUD users (BUSINESS až 5).
+	•	Branding: na public stránce /:orgSlug skrýt/ukázat footer „Powered by …“.
+
+⸻
+
+20) Stránky a chování (detailní popis pro Replit)
+
+20.1 Veřejná stránka organizace /:orgSlug
+	•	Zobrazuje název organizace, seznam aktivních služeb (název, délka, cena), kalendář, dostupné časy.
+	•	Akce: uživatel vybere službu → datum → čas → vyplní jméno, e‑mail, telefon (volitelné) → odešle.
+	•	Validace: jméno 2–80, e‑mail validní, anti‑spam (honeypot + rate‑limit).
+	•	Odezva: po úspěchu zobrazit „Rezervace přijata, potvrzení odešleme e‑mailem.“
+
+20.2 Přihlášení/registrace /auth/login, /auth/register
+	•	Register: založí organizaci (name, slug, timezone), admin uživatele, nastaví cookie.
+	•	Login: email + heslo, cookie httpOnly, redirect na /dashboard.
+
+20.3 Dashboard /dashboard
+	•	Přehled dne/týdne, filtry podle služby a stavu, rychlé potvrzení/zrušení rezervace.
+
+20.4 Služby /dashboard/services
+	•	CRUD: název, délka, cena (CZK), aktivní/disabled.
+	•	Gating: na FREE zakázat vytvořit >1 službu.
+
+20.5 Dostupnost /dashboard/availability
+	•	CRUD týdenních šablon (Po–Ne, od–do, krok slotu 15/30/60 min).
+	•	Ukázat náhled slotů na vybraný den.
+
+20.6 Blackouty /dashboard/blackouts
+	•	Blokace dnů/časů (dovolená, svátek). Kolize se sloty – sloty se nevrací.
+
+20.7 Rezervace /dashboard/bookings
+	•	Seznam, stavy (PENDING/CONFIRMED/CANCELLED), vyhledávání, filtrování.
+	•	Export CSV tlačítkem → stáhne stream.
+
+20.8 Billing /dashboard/billing
+	•	Zobrazit aktuální plán, limity, a CTA na upgrade.
+	•	Karty plánů (PRO, BUSINESS) → tlačítko „Pokračovat k platbě“ → POST /api/billing/checkout → redirect URL (Stripe Checkout).
+	•	Po návratu ze Stripe zobrazení výsledku: /billing/success nebo /billing/cancel.
+	•	Zobrazit historii plateb (tabulka z payments).
+
+20.9 Stránky výsledku plateb
+	•	/billing/success – načte session_id z query, potvrdí serverem (volitelný GET /api/billing/status), ukáže „Plán aktivní“.
+	•	/billing/cancel – informace o zrušení, tlačítko zpět na /dashboard/billing.
+
+⸻
+
+21) API – doplnění (pro Replit auto‑gen)
+
+POST   /api/billing/checkout          { plan } → { url }
+POST   /api/billing/webhook           (Stripe podpis)
+GET    /api/billing/status            → { plan, subscription_status, current_period_end }
+GET    /api/billing/portal            → { url } (nepovinné)
+
+GET    /api/public/:orgSlug/services
+GET    /api/public/:orgSlug/slots?from=ISO&to=ISO&serviceId=...
+POST   /api/public/:orgSlug/bookings  { name,email,phone?,note,serviceId,startsAt }
+
+GET    /api/services
+POST   /api/services
+PATCH  /api/services/:id
+DELETE /api/services/:id
+
+GET    /api/availability
+POST   /api/availability
+DELETE /api/availability/:id
+
+GET    /api/blackouts
+POST   /api/blackouts
+DELETE /api/blackouts/:id
+
+GET    /api/bookings?from&to&serviceId&status
+PATCH  /api/bookings/:id
+DELETE /api/bookings/:id
+GET    /api/bookings/export.csv?from&to&serviceId&status
+
+
+⸻
+
+22) Akceptační kritéria (billing)
+	•	Uživatel na FREE vidí gating (přesáhne‑li limit, dostane 402/forbidden s friendly hláškou).
+	•	Checkout PRO/BUSINESS přesměruje na Stripe a po úspěchu webhook nastaví plán na org.
+	•	/dashboard/billing zobrazuje aktivní plán a poslední platby.
+	•	Rate‑limit a anti‑spam je účinný na POST /api/public/:orgSlug/bookings.
+
+⸻
+
+23) Testovací scénáře
+	1.	Registrace org, vytvoření 1 služby, vytvoření 55 rezervací → posledních 5 na FREE selže (limit 50).
+	2.	Upgrade na PRO → limit povolen, branding vypnut, e‑maily s logem.
+	3.	Vytvoření 6. služby na PRO → selže (limit 5) → po upgradu na BUSINESS projde.
+	4.	Webhook bez podpisu → 400; webhook s validním podpisem změní plán a zapíše platbu.
+
+⸻
+
+24) Poznámky k nasazení
+	•	Na Replitu drž SECRET klíče v Secrets.
+	•	V testu použij Stripe test kartu 4242 4242 4242 4242.
+	•	Pro CZK ceny vytvoř Products/Prices ve Stripe a hodnoty vlož do env (STRIPE_PRICE_PRO, STRIPE_PRICE_BUSINESS).
