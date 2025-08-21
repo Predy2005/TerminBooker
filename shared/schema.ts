@@ -15,6 +15,8 @@ export const organizations = pgTable("organizations", {
   subscriptionCurrentPeriodEnd: timestamp("subscription_current_period_end"),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
+  stripeAccountId: text("stripe_account_id"),
+  stripeOnboardingStatus: text("stripe_onboarding_status").notNull().default("pending"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`)
 });

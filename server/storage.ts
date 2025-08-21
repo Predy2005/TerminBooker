@@ -66,6 +66,11 @@ export interface IStorage {
   }): Promise<Organization>;
   getOrganizationByStripeCustomer(stripeCustomerId: string): Promise<Organization | undefined>;
 
+  // Stripe Connect
+  updateOrganizationStripeAccount(organizationId: string, stripeAccountId: string): Promise<Organization>;
+  updateOrganizationOnboardingStatus(organizationId: string, status: string): Promise<Organization>;
+  getOrganizationByStripeAccount(stripeAccountId: string): Promise<Organization | undefined>;
+
   // Payments
   createPayment(payment: InsertPayment): Promise<Payment>;
   updatePaymentByExternalId(externalId: string, update: Partial<InsertPayment>): Promise<Payment>;
@@ -384,6 +389,33 @@ export class DatabaseStorage implements IStorage {
       .update(users)
       .set({ passwordHash: hashedPassword })
       .where(eq(users.email, email));
+  }
+
+  // Stripe Connect
+  async updateOrganizationStripeAccount(organizationId: string, stripeAccountId: string): Promise<Organization> {
+    const [updated] = await db
+      .update(organizations)
+      .set({ stripeAccountId, updatedAt: new Date() })
+      .where(eq(organizations.id, organizationId))
+      .returning();
+    return updated;
+  }
+
+  async updateOrganizationOnboardingStatus(organizationId: string, status: string): Promise<Organization> {
+    const [updated] = await db
+      .update(organizations)
+      .set({ stripeOnboardingStatus: status, updatedAt: new Date() })
+      .where(eq(organizations.id, organizationId))
+      .returning();
+    return updated;
+  }
+
+  async getOrganizationByStripeAccount(stripeAccountId: string): Promise<Organization | undefined> {
+    const [org] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.stripeAccountId, stripeAccountId));
+    return org || undefined;
   }
 }
 

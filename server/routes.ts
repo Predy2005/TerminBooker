@@ -32,6 +32,14 @@ import {
 } from "./lib/validation";
 import { z } from "zod";
 import crypto from "crypto";
+import Stripe from "stripe";
+
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
+}
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2023-10-16",
+});
 
 const checkoutRequestSchema = z.object({
   plan: z.enum(['PRO', 'BUSINESS'])
@@ -672,6 +680,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Billing routes
+  // Stripe Connect - Create Connected Account
+  server.post("/billing/connect/create", async (request, reply) => {
+    try {
+      const user = await requireAuth(request, reply);
+      const organization = await storage.getOrganization(user.organizationId);
+      
+      if (!organization) {
+        return reply.status(404).send({ message: "Organizace nebyla nalezena" });
+      }
+
+      // Check if account already exists
+      if (organization.stripeAccountId) {
+        return reply.status(400).send({ message: "Stripe účet již existuje" });
+      }
+
+      // Create Stripe Express account
+      const account = await stripe.accounts.create({
+        type: 'express',
+        country: 'CZ',
+        business_type: 'individual',
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
+        metadata: {
+          organization_id: organization.id,
+          organization_name: organization.name
+        }
+      });
+
+      // Update organization with account ID
+      await storage.updateOrganizationStripeAccount(organization.id, account.id);
+
+      // Create account link for onboarding
+      const accountLink = await stripe.accountLinks.create({
+        account: account.id,
+        return_url: `${process.env.PUBLIC_BASE_URL || 'http://localhost:5000'}/app/billing/connect/success`,
+        refresh_url: `${process.env.PUBLIC_BASE_URL || 'http://localhost:5000'}/app/billing/connect/refresh`,
+        type: 'account_onboarding',
+      });
+
+      return { url: accountLink.url };
+    } catch (error: any) {
+      console.error("Connect create error:", error);
+      return reply.status(500).send({ message: "Chyba při vytváření Stripe účtu" });
+    }
+  });
+
+  // Stripe Connect Webhooks
+  server.post("/billing/connect/webhook", async (request, reply) => {
+    try {
+      const sig = request.headers['stripe-signature'] as string;
+      const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET_CONNECT;
+      
+      if (!webhookSecret) {
+        console.error("Missing STRIPE_WEBHOOK_SECRET_CONNECT");
+        return reply.status(400).send({ message: "Webhook secret not configured" });
+      }
+
+      let event: Stripe.Event;
+      try {
+        event = stripe.webhooks.constructEvent(request.body as Buffer, sig, webhookSecret);
+      } catch (err) {
+        console.error("Webhook signature verification failed", err);
+        return reply.status(400).send({ message: "Webhook signature verification failed" });
+      }
+
+      if (event.type === 'account.updated') {
+        const account = event.data.object as Stripe.Account;
+        
+        // Find organization by stripe account ID
+        const organization = await storage.getOrganizationByStripeAccount(account.id);
+        if (!organization) {
+          console.warn(`Organization not found for account ${account.id}`);
+          return reply.send({ received: true });
+        }
+
+        // Determine onboarding status
+        let status = 'pending';
+        if (account.charges_enabled && account.payouts_enabled) {
+          status = 'active';
+        } else if (account.requirements?.currently_due?.length === 0) {
+          status = 'restricted';
+        }
+
+        // Update status
+        await storage.updateOrganizationOnboardingStatus(organization.id, status);
+        
+        console.log(`Updated organization ${organization.id} onboarding status to: ${status}`);
+      }
+
+      return { received: true };
+    } catch (error: any) {
+      console.error("Connect webhook error:", error);
+      return reply.status(500).send({ message: "Webhook processing failed" });
+    }
+  });
+
   server.post("/billing/checkout", async (request, reply) => {
     try {
       const user = await requireAuth(request, reply);

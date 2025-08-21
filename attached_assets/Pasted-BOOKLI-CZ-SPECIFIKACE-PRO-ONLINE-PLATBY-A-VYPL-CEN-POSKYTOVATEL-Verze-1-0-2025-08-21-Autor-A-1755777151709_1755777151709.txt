@@ -1,0 +1,224 @@
+BOOKLI.CZ — SPECIFIKACE PRO ONLINE PLATBY A VYPLÁCENÍ POSKYTOVATELŮ
+Verze: 1.0 (2025-08-21)
+Autor: Amy (ChatGPT)
+====================================================================
+
+ÚČEL DOKUMENTU
+--------------
+Tento dokument je textové zadání (Pro Replit / Word / TXT) pro implementaci online plateb,
+vyúčtování a právních dokumentů v mini rezervačním systému Bookli.cz. Obsahuje:
+- doporučený platební model (Stripe Connect Express)
+- technické změny (DB, API, webhooky)
+- obchodní podmínky + reklamační řád (kostra textů)
+- poplatky, vyúčtování, reporting a párování plateb
+- UX copy a e-mailové šablony
+- checklist pro spuštění
+
+====================================================================
+A) PLATEBNÍ MODEL A PRÁVNÍ RÁMEC
+====================================================================
+A.1 Doporučený model: STRIPE CONNECT (EXPRESS)
+- Každý poskytovatel (organizace) má svůj Stripe „connected account“ (Express).
+- Platba za rezervaci probíhá na účet poskytovatele (destination charge).
+- Platforma Bookli si bere application_fee_amount (procento nebo fix).
+- Stripe provádí KYC/AML onboarding poskytovatele (legal compliance).
+- Výplaty (payouts) řeší Stripe přímo poskytovateli.
+- Platforma NENÍ platební institucí (peníze nejdou přes centrální účet).
+
+A.2 Alternativní model (NEdoporučeno pro MVP)
+- Vše jde na centrální účet Bookli, vy následně vyplácíte poskytovatele (do 60 dní).
+- V ČR/EU spadá pod zákon o platebním styku (PSD2). Vyžaduje povolení ČNB (platební instituce).
+- Použijte pouze, pokud máte právní licenci a procesy. Jinak zůstaňte u Stripe Connect.
+
+A.3 Poplatky
+- Stripe fee: dle tarifu Stripe (např. ~1.4–2.9% + fixní poplatek).
+- Platform fee (Bookli): doporučeno jako application_fee_amount (např. 5% nebo 10 Kč / rezervace).
+- Měsíční SaaS poplatky (PRO/BUSINESS) zůstávají separátně jako předplatné na platform účtu.
+
+====================================================================
+B) ZMĚNY V DATABÁZI (POSTGRESQL)
+====================================================================
+B.1 Organizace
+ALTER TABLE organizations
+  ADD COLUMN stripe_account_id TEXT,
+  ADD COLUMN stripe_onboarding_status TEXT NOT NULL DEFAULT 'pending'; -- pending|restricted|active
+
+B.2 Platby za rezervace (máte již 0003; doplňte provider detaily pokud chybí)
+-- V tabulce bookings: payment_status, payment_provider, payment_external_id, hold_expires_at
+-- Tabulka booking_payments: evidovat payment_intent/checkout.session, statusy, payload
+
+====================================================================
+C) API ENDPOINTS (FASTIFY)
+====================================================================
+C.1 Connect onboarding
+POST /api/billing/connect/create
+- vyžádá založení connected accountu (type=express, capabilities: card_payments+transfers)
+- uloží stripe_account_id k organizaci
+- vygeneruje Account Link (onboarding) a vrátí { url }
+
+POST /api/billing/connect/webhook
+- přijímá Stripe Connect webhooky (account.updated, eventy k účtu)
+- stav „active“ pokud charges_enabled && payouts_enabled
+- loguje payload do webhook_events (volitelně)
+
+C.2 Rezervace – Checkout (Connect)
+POST /api/public/:orgSlug/bookings              -> vytvoří booking (OFF/OPTIONAL/REQUIRED)
+POST /api/public/:orgSlug/bookings/:id/checkout -> vytvoří Stripe Checkout Session:
+  - mode: 'payment'
+  - line_items: price_data (CZK, name, unit_amount)
+  - success_url/cancel_url (obsahuje bookingId)
+  - payment_intent_data.transfer_data.destination = stripe_account_id (organizace)
+  - payment_intent_data.application_fee_amount = platform fee (volitelné)
+  - payment_intent_data.on_behalf_of = stripe_account_id (kvůli dokladům)
+  - metadata: booking_id, org_id, service_id
+
+C.3 Webhook (platby rezervací — společný nebo oddělený)
+POST /api/billing/webhook
+- ověření Stripe podpisu (platform key)
+- zpracování checkout.session.completed → payment_intent.succeeded
+- nastavit booking.payment_status='PAID', booking.status='CONFIRMED'
+- zapsat do booking_payments (status 'paid', paid_at, external_id)
+- idempotence: pokud existuje external_id, ignorovat duplicitní event
+
+C.4 SaaS předplatné (PRO/BUSINESS)
+POST /api/billing/checkout (subscription)  -> platform account, Prices/Products v CZK
+GET  /api/billing/status
+GET  /api/billing/portal                   -> Stripe Customer Portal (volitelně)
+
+====================================================================
+D) FRONTEND / UX (REACT)
+====================================================================
+D.1 Dashboard /billing
+- Tlačítko „Založit Stripe účet (Express)“ -> volá /api/billing/connect/create (redirect na url).
+- Badge stavu účtu: pending / restricted / active (z webhooku).
+- U služeb povolit online platbu až při status=active.
+
+D.2 Veřejná stránka /:orgSlug
+- Pokud payment_mode=REQUIRED: po vytvoření booking draftu nabídnout „Zaplatit nyní“ (15:00 countdown).
+- Pokud payment_mode=OPTIONAL: CTA „Zaplatit“ po vytvoření rezervace.
+- Po návratu ze Stripe na /booking/success zobraz potvrzení a tip „Přidat do kalendáře (iCal)“.
+
+====================================================================
+E) REPORTING, PÁROVÁNÍ, RECONCILIACE
+====================================================================
+E.1 Párování plateb
+- Ukládejte do metadata booking_id, org_id, service_id.
+- booking_payments.external_id = PaymentIntent/CheckoutSession id
+- Denní cron: synchronizace placených rezervací (volitelně Stripe API list).
+
+E.2 Výstup pro poskytovatele (měsíční report)
+- Přehled přijatých plateb (hrubá částka), Stripe fee, application fee, čistá částka.
+- Stavy refundů/chargebacků (odečíst z následujícího období).
+- Export CSV v /dashboard/bookings (filtr „PAID“, datumové rozmezí).
+
+E.3 Refundy
+- Refund API na daný payment_intent (částka/plná).
+- Reverzní transfer (u destination charge Stripe zajistí účtování).
+
+====================================================================
+F) PRÁVNÍ DOKUMENTY — SKELET TEXTŮ (CZ)
+====================================================================
+Poznámka: Následující texty jsou vzor/kostra. Nechte je zrevidovat právníkem.
+
+F.1 Obchodní podmínky Bookli.cz (výňatek / osnova)
+1) Identifikace poskytovatele služby
+   - Bookli s.r.o., IČ: ______, DIČ: ______, sídlo: ______, zápis v OR: ______
+   - kontaktní e-mail: support@bookli.cz
+2) Popis služby
+   - Bookli poskytuje online rezervační systém (SaaS) a zprostředkování online plateb prostřednictvím Stripe.
+3) Uživatelský účet a organizace
+   - Registrace, správa přístupu, odpovědnost za přístupové údaje.
+4) Ceny a platební podmínky (SaaS)
+   - Plány Free/Pro/Business, opakované platby přes Stripe, ceník na webu.
+5) Online platby za rezervace (Stripe Connect)
+   - Platby koncových zákazníků jsou zpracovány přes Stripe; peněžní prostředky jsou
+     směřovány na účet poskytovatele služby (connected account).
+   - Bookli je platforma a účtuje si platform fee (application_fee_amount); platební poplatky Stripe
+     jsou účtovány dle podmínek Stripe.
+6) Daně a doklady
+   - Poskytovatel je odpovědný za správné daňové doklady vůči svým zákazníkům.
+   - Upozornění na roli „on_behalf_of“ a nastavení v Stripe (pokud se použije).
+7) Storna, změny a refundace
+   - Proces storna rezervace (přes Bookli/poskytovatele); refundace dle pravidel Stripe.
+   - Způsob vyřízení a lhůty.
+8) Odpovědnost
+   - Bookli neodpovídá za kvalitu a poskytnutí služby ze strany poskytovatele; odpovídá za provoz SaaS.
+9) Ochrana osobních údajů
+   - Odkaz na Zásady ochrany osobních údajů.
+10) Trvání smlouvy, výpověď
+    - Ukončení účtu, vypořádání závazků, export dat.
+11) Závěrečná ustanovení
+    - Rozhodné právo ČR, změny podmínek, účinnost.
+
+F.2 Reklamační řád (výňatek / osnova)
+1) Uplatnění reklamace služby (obsah/termín)
+   - Zákazník kontaktuje přímo poskytovatele přes údaje na jeho veřejné stránce nebo přes Bookli podporu.
+2) Postup řešení
+   - Zprostředkování komunikace, případné refundace přes Stripe na daný payment_intent.
+3) Lhůta pro vyřízení
+   - Obvyklá lhůta 30 dní (není-li dohodnuto jinak).
+4) Náklady a poplatky
+   - Informace o tom, že Stripe fee nemusí být vráceno v plné výši dle podmínek Stripe.
+5) Mimosoudní řešení sporů
+   - Odkaz na ČOI a ADR.
+
+F.3 Zásady ochrany osobních údajů (výňatek / osnova)
+- Správce: Bookli s.r.o.
+- Zpracovávané údaje: účet, organizace, rezervace, e-maily, platební identifikátory (ne uchování čísel karet).
+- Účely: poskytování SaaS, notifikace, fakturace, bezpečnost.
+- Příjemci: poskytovatelé cloudových služeb (DB), e-mail (SMTP), platební brána Stripe.
+- Práva subjektů údajů, kontaktní e-mail, doby uchování.
+
+====================================================================
+G) E-MAILY (ŠABLONY – CZ)
+====================================================================
+G.1 BOOKING_CREATED (REQUIRED)
+Předmět: Přijali jsme tvou rezervaci – čeká na platbu
+Text: Díky za rezervaci služby {service}. Abychom ji potvrdili, dokonči prosím platbu do {deadline}.
+Tlačítko: Zaplatit online
+
+G.2 BOOKING_CONFIRMED (PAID)
+Předmět: Rezervace potvrzena
+Text: Hotovo! Tvá rezervace {service} na {date time} je potvrzená.
+
+G.3 BOOKING_EXPIRED
+Předmět: Rezervace vypršela
+Text: Platba neproběhla včas, termín byl uvolněn zpět do nabídky.
+
+====================================================================
+H) CHECKLIST PRO SPUŠTĚNÍ
+====================================================================
+[ ] Stripe účet (platform) – aktivní v režimu test i live
+[ ] API klíče v .env (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET*, PUBLIC_BASE_URL, CONNECT_*_URL)
+[ ] Webhooky nakonfigurovány (billing/webhook, connect/webhook)
+[ ] DB migrace nasazené (stripe_account_id, statusy plateb)
+[ ] Onboarding flow otestován (create -> accountLink -> návrat -> account.updated event)
+[ ] Checkout rezervace (destination charge + application_fee) otestován
+[ ] Refund otestován
+[ ] Pricing stránky + obchodní podmínky + privacy + reklamační řád zveřejněny
+[ ] Support kanály funkční (support@, /support formulář)
+[ ] Logování a idempotence webhooků
+[ ] Exporty CSV a měsíční reporty
+
+====================================================================
+I) ENV PROMĚNNÉ (SERVER)
+====================================================================
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...            # pro platby (platform)
+STRIPE_WEBHOOK_SECRET_CONNECT=whsec_...     # pro connect/account události
+PUBLIC_BASE_URL=https://bookli.cz
+CONNECT_RETURN_URL=https://bookli.cz/app/billing/connect/success
+CONNECT_REFRESH_URL=https://bookli.cz/app/billing/connect/refresh
+CHECKOUT_SUCCESS_URL=https://bookli.cz/booking/success
+CHECKOUT_CANCEL_URL=https://bookli.cz/booking/cancel
+
+====================================================================
+J) POZNÁMKY K IMPLEMENTACI
+====================================================================
+- Udržte idempotenci webhooků (podle event.id a external_id v DB).
+- Na frontendu znemožněte spuštění platby, pokud org.stripe_onboarding_status !== 'active'.
+- Platform fee počítejte na serveru (ne z klienta).
+- V metadata ukládejte booking_id a org_id pro snadné dohledání.
+- Při REQUIRED režimu držte slot (hold_expires_at), cron pro čištění expirovaných.
+
+KONEC DOKUMENTU

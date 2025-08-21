@@ -20,6 +20,9 @@ import Bookings from "@/pages/bookings";
 import Settings from "@/pages/settings";
 import Pricing from "@/pages/pricing";
 import BillingSuccess from "@/pages/billing-success";
+import BillingPage from "@/pages/billing";
+import BillingConnectSuccessPage from "@/pages/billing-connect-success";
+import BillingConnectRefreshPage from "@/pages/billing-connect-refresh";
 import BookingSuccess from "@/pages/booking-success";
 import BookingCancel from "@/pages/booking-cancel";
 
@@ -50,6 +53,9 @@ function Router() {
       <Route path="/app/blackouts" component={Blackouts} />
       <Route path="/app/bookings" component={Bookings} />
       <Route path="/app/settings" component={Settings} />
+      <Route path="/app/billing" component={BillingPage} />
+      <Route path="/app/billing/connect/success" component={BillingConnectSuccessPage} />
+      <Route path="/app/billing/connect/refresh" component={BillingConnectRefreshPage} />
       <Route path="/app/pricing" component={Pricing} />
       <Route path="/billing/success" component={BillingSuccess} />
       

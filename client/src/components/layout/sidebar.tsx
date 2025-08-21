@@ -23,6 +23,7 @@ export default function Sidebar() {
     { name: "Služby", href: "/app/services", icon: Bell },
     { name: "Dostupnost", href: "/app/availability", icon: Clock },
     { name: "Blokace", href: "/app/blackouts", icon: Ban },
+    { name: "Fakturace", href: "/app/billing", icon: CreditCard },
     { name: "Cenové plány", href: "/app/pricing", icon: CreditCard },
     { name: "Nastavení", href: "/app/settings", icon: Settings }
   ];
