@@ -28,6 +28,26 @@ const serviceSchema = z.object({
 
 type ServiceForm = z.infer<typeof serviceSchema>;
 
+const getPaymentModeLabel = (mode?: string): string => {
+  switch (mode) {
+    case "OFF": return "Bez platby";
+    case "OPTIONAL": return "Volitelná";
+    case "REQUIRED": return "Povinná";
+    case "ORG_DEFAULT": 
+    default: return "Výchozí";
+  }
+};
+
+const getPaymentModeBadgeColor = (mode?: string): string => {
+  switch (mode) {
+    case "OFF": return "bg-gray-100 text-gray-800";
+    case "OPTIONAL": return "bg-blue-100 text-blue-800"; 
+    case "REQUIRED": return "bg-red-100 text-red-800";
+    case "ORG_DEFAULT":
+    default: return "bg-slate-100 text-slate-800";
+  }
+};
+
 export default function Services() {
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -103,6 +123,7 @@ export default function Services() {
       name: "",
       durationMin: 60,
       priceCzk: undefined,
+      requirePayment: "ORG_DEFAULT",
       isActive: true
     }
   });
@@ -113,6 +134,7 @@ export default function Services() {
       name: "",
       durationMin: 60,
       priceCzk: undefined,
+      requirePayment: "ORG_DEFAULT",
       isActive: true
     });
     setIsDialogOpen(true);
@@ -124,6 +146,7 @@ export default function Services() {
       name: service.name,
       durationMin: service.durationMin,
       priceCzk: service.priceCzk || undefined,
+      requirePayment: service.requirePayment || "ORG_DEFAULT",
       isActive: service.isActive
     });
     setIsDialogOpen(true);
@@ -181,7 +204,8 @@ export default function Services() {
                       {editingService ? "Upravit službu" : "Přidat novou službu"}
                     </DialogTitle>
                   </DialogHeader>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                     <div>
                       <Label htmlFor="name">Název služby</Label>
                       <Input
@@ -233,6 +257,30 @@ export default function Services() {
                       )}
                     </div>
 
+                    <FormField
+                      control={form.control}
+                      name="requirePayment"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Režim platby</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-payment-mode">
+                                <SelectValue placeholder="Vyberte režim platby" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="ORG_DEFAULT">Výchozí nastavení organizace</SelectItem>
+                              <SelectItem value="OFF">Bez platby</SelectItem>
+                              <SelectItem value="OPTIONAL">Platba volitelná</SelectItem>
+                              <SelectItem value="REQUIRED">Platba povinná</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
                     <div className="flex items-center space-x-2">
                       <Switch
                         id="isActive"
@@ -261,7 +309,8 @@ export default function Services() {
                         {editingService ? "Uložit změny" : "Přidat službu"}
                       </Button>
                     </div>
-                  </form>
+                    </form>
+                  </Form>
                 </DialogContent>
               </Dialog>
             </div>
@@ -310,6 +359,9 @@ export default function Services() {
                           Cena
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                          Platba
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                           Status
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
@@ -340,6 +392,14 @@ export default function Services() {
                             ) : (
                               <span className="text-slate-400">—</span>
                             )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap" data-testid={`text-service-payment-${service.id}`}>
+                            <Badge 
+                              className={`${getPaymentModeBadgeColor(service.requirePayment)} hover:${getPaymentModeBadgeColor(service.requirePayment)}`}
+                            >
+                              <CreditCard className="h-3 w-3 mr-1" />
+                              {getPaymentModeLabel(service.requirePayment)}
+                            </Badge>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <Badge 
