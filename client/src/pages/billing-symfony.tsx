@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import Sidebar from "@/components/layout/sidebar";
 import { 
   CreditCard, 
   CheckCircle, 
@@ -82,11 +83,15 @@ export default function BillingSymfonyPage() {
   const statusInfo = getStatusInfo(connectStatus?.status);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Platby a fakturace</h1>
-        <p className="text-slate-600">Nastavení a správa platební brány</p>
-      </div>
+    <div className="flex h-screen bg-gray-50">
+      <Sidebar />
+      <div className="flex-1 ml-64 overflow-auto">
+        <div className="p-8">
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Platby a fakturace</h1>
+              <p className="text-slate-600">Nastavení a správa platební brány</p>
+            </div>
 
       {/* Stripe Connect Status */}
       <Card>
@@ -246,6 +251,9 @@ export default function BillingSymfonyPage() {
           </div>
         </CardContent>
       </Card>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
