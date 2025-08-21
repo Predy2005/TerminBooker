@@ -13,6 +13,8 @@ import Availability from "@/pages/availability";
 import Blackouts from "@/pages/blackouts";
 import Bookings from "@/pages/bookings";
 import Settings from "@/pages/settings";
+import Pricing from "@/pages/pricing";
+import BillingSuccess from "@/pages/billing-success";
 
 function Router() {
   return (
@@ -32,6 +34,8 @@ function Router() {
       <Route path="/blackouts" component={Blackouts} />
       <Route path="/bookings" component={Bookings} />
       <Route path="/settings" component={Settings} />
+      <Route path="/pricing" component={Pricing} />
+      <Route path="/billing/success" component={BillingSuccess} />
       
       {/* Fallback to 404 */}
       <Route component={NotFound} />

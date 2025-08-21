@@ -1,11 +1,13 @@
 import { 
-  organizations, users, services, availabilityTemplates, blackouts, bookings,
+  organizations, users, services, availabilityTemplates, blackouts, bookings, payments, webhookEvents,
   type Organization, type InsertOrganization,
   type User, type InsertUser,
   type Service, type InsertService,
   type AvailabilityTemplate, type InsertAvailabilityTemplate,
   type Blackout, type InsertBlackout,
   type Booking, type InsertBooking,
+  type Payment, type InsertPayment,
+  type WebhookEvent, type InsertWebhookEvent,
   type BookingStatus
 } from "@shared/schema";
 import { db } from "./db";
@@ -52,6 +54,23 @@ export interface IStorage {
   updateBooking(id: string, booking: Partial<InsertBooking>): Promise<Booking>;
   deleteBooking(id: string): Promise<void>;
   getBookingConflicts(organizationId: string, startsAt: Date, endsAt: Date, excludeBookingId?: string): Promise<Booking[]>;
+
+  // Billing
+  updateOrganizationStripeCustomer(organizationId: string, stripeCustomerId: string): Promise<Organization>;
+  updateOrganizationPlan(organizationId: string, update: {
+    plan?: string;
+    subscriptionStatus?: string;
+    currentPeriodEnd?: Date | null;
+    stripeSubscriptionId?: string | null;
+  }): Promise<Organization>;
+  getOrganizationByStripeCustomer(stripeCustomerId: string): Promise<Organization | undefined>;
+
+  // Payments
+  createPayment(payment: InsertPayment): Promise<Payment>;
+  updatePaymentByExternalId(externalId: string, update: Partial<InsertPayment>): Promise<Payment>;
+
+  // Webhook Events
+  createWebhookEvent(event: InsertWebhookEvent): Promise<WebhookEvent>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -230,6 +249,63 @@ export class DatabaseStorage implements IStorage {
     }
 
     return db.select().from(bookings).where(and(...conditions));
+  }
+
+  // Billing methods
+  async updateOrganizationStripeCustomer(organizationId: string, stripeCustomerId: string): Promise<Organization> {
+    const [updated] = await db
+      .update(organizations)
+      .set({ stripeCustomerId, updatedAt: new Date() })
+      .where(eq(organizations.id, organizationId))
+      .returning();
+    return updated;
+  }
+
+  async updateOrganizationPlan(organizationId: string, update: {
+    plan?: string;
+    subscriptionStatus?: string;
+    currentPeriodEnd?: Date | null;
+    stripeSubscriptionId?: string | null;
+  }): Promise<Organization> {
+    const [updated] = await db
+      .update(organizations)
+      .set({ 
+        ...update,
+        subscriptionCurrentPeriodEnd: update.currentPeriodEnd,
+        updatedAt: new Date() 
+      })
+      .where(eq(organizations.id, organizationId))
+      .returning();
+    return updated;
+  }
+
+  async getOrganizationByStripeCustomer(stripeCustomerId: string): Promise<Organization | undefined> {
+    const [org] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.stripeCustomerId, stripeCustomerId));
+    return org || undefined;
+  }
+
+  // Payments
+  async createPayment(payment: InsertPayment): Promise<Payment> {
+    const [created] = await db.insert(payments).values(payment).returning();
+    return created;
+  }
+
+  async updatePaymentByExternalId(externalId: string, update: Partial<InsertPayment>): Promise<Payment> {
+    const [updated] = await db
+      .update(payments)
+      .set(update)
+      .where(eq(payments.externalId, externalId))
+      .returning();
+    return updated;
+  }
+
+  // Webhook Events
+  async createWebhookEvent(event: InsertWebhookEvent): Promise<WebhookEvent> {
+    const [created] = await db.insert(webhookEvents).values(event).returning();
+    return created;
   }
 }
 

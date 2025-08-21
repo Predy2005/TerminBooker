@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, integer, boolean, timestamp, pgEnum, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, boolean, timestamp, pgEnum, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -10,6 +10,11 @@ export const organizations = pgTable("organizations", {
   slug: text("slug").unique().notNull(),
   timezone: text("timezone").notNull().default("Europe/Prague"),
   language: text("language").notNull().default("cs-CZ"),
+  plan: text("plan").notNull().default("FREE"),
+  subscriptionStatus: text("subscription_status").notNull().default("inactive"),
+  subscriptionCurrentPeriodEnd: timestamp("subscription_current_period_end"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`)
 });
@@ -81,7 +86,8 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   services: many(services),
   availabilityTemplates: many(availabilityTemplates),
   blackouts: many(blackouts),
-  bookings: many(bookings)
+  bookings: many(bookings),
+  payments: many(payments)
 }));
 
 export const usersRelations = relations(users, ({ one }) => ({
@@ -124,6 +130,35 @@ export const blackoutsRelations = relations(blackouts, ({ one }) => ({
   })
 }));
 
+export const payments = pgTable("payments", {
+  id: text("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: text("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull(),
+  externalId: text("external_id").notNull(),
+  plan: text("plan").notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  currency: text("currency").notNull().default("CZK"),
+  status: text("status").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  paidAt: timestamp("paid_at"),
+  rawPayload: jsonb("raw_payload")
+});
+
+export const webhookEvents = pgTable("webhook_events", {
+  id: text("id").primaryKey().default(sql`gen_random_uuid()`),
+  provider: text("provider").notNull(),
+  eventType: text("event_type").notNull(),
+  receivedAt: timestamp("received_at").notNull().default(sql`now()`),
+  payload: jsonb("payload")
+});
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [payments.organizationId],
+    references: [organizations.id]
+  })
+}));
+
 // Insert schemas
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({
   id: true,
@@ -156,6 +191,16 @@ export const insertBookingSchema = createInsertSchema(bookings).omit({
   updatedAt: true
 });
 
+export const insertPaymentSchema = createInsertSchema(payments).omit({
+  id: true,
+  createdAt: true
+});
+
+export const insertWebhookEventSchema = createInsertSchema(webhookEvents).omit({
+  id: true,
+  receivedAt: true
+});
+
 // Types
 export type Organization = typeof organizations.$inferSelect;
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
@@ -176,3 +221,9 @@ export type Booking = typeof bookings.$inferSelect;
 export type InsertBooking = z.infer<typeof insertBookingSchema>;
 
 export type BookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED";
+
+export type Payment = typeof payments.$inferSelect;
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+
+export type WebhookEvent = typeof webhookEvents.$inferSelect;
+export type InsertWebhookEvent = z.infer<typeof insertWebhookEventSchema>;

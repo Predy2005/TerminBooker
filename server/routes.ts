@@ -15,6 +15,7 @@ import {
   requireAuth 
 } from "./lib/auth";
 import { sendBookingConfirmation, sendBookingStatusChange } from "./lib/email";
+import { billingService } from "./lib/billing";
 import { generateTimeSlots } from "./lib/slots";
 import {
   registerSchema,
@@ -28,6 +29,12 @@ import {
   bookingsQuerySchema,
   slotsQuerySchema
 } from "./lib/validation";
+import { z } from "zod";
+
+const checkoutRequestSchema = z.object({
+  plan: z.enum(['PRO', 'BUSINESS'])
+});
+
 import path from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -501,6 +508,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return csvContent;
     } catch (error: any) {
       return reply.status(400).send({ message: error.message || "Chyba při exportu" });
+    }
+  });
+
+  // Billing routes
+  server.post("/billing/checkout", async (request, reply) => {
+    try {
+      const user = await requireAuth(request, reply);
+      const { plan } = checkoutRequestSchema.parse(request.body);
+      
+      const successUrl = `${request.protocol}://${request.headers.host}/billing/success?session_id={CHECKOUT_SESSION_ID}`;
+      const cancelUrl = `${request.protocol}://${request.headers.host}/pricing`;
+      
+      const result = await billingService.createCheckoutSession(
+        user.organizationId,
+        plan,
+        successUrl,
+        cancelUrl
+      );
+      
+      return result;
+    } catch (error: any) {
+      return reply.status(400).send({ message: error.message || "Chyba při vytváření platby" });
+    }
+  });
+
+  server.post("/billing/webhook", async (request, reply) => {
+    try {
+      const signature = request.headers['stripe-signature'] as string;
+      const payload = request.body as string;
+      
+      await billingService.handleWebhook(payload, signature);
+      
+      return { received: true };
+    } catch (error: any) {
+      console.error('Webhook error:', error);
+      return reply.status(400).send({ message: error.message || "Webhook error" });
+    }
+  });
+
+  server.get("/billing/status", async (request, reply) => {
+    try {
+      const user = await requireAuth(request, reply);
+      const status = await billingService.getBillingStatus(user.organizationId);
+      return status;
+    } catch (error: any) {
+      return reply.status(400).send({ message: error.message || "Chyba při načítání stavu plateb" });
+    }
+  });
+
+  server.get("/billing/portal", async (request, reply) => {
+    try {
+      const user = await requireAuth(request, reply);
+      const returnUrl = `${request.protocol}://${request.headers.host}/pricing`;
+      const result = await billingService.createPortalSession(user.organizationId, returnUrl);
+      return result;
+    } catch (error: any) {
+      return reply.status(400).send({ message: error.message || "Chyba při vytváření portálu" });
     }
   });
 

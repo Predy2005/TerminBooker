@@ -8,6 +8,7 @@ import {
   Clock, 
   Ban, 
   Settings, 
+  CreditCard,
   LogOut 
 } from "lucide-react";
 
@@ -22,6 +23,7 @@ export default function Sidebar() {
     { name: "Služby", href: "/services", icon: Bell },
     { name: "Dostupnost", href: "/availability", icon: Clock },
     { name: "Blokace", href: "/blackouts", icon: Ban },
+    { name: "Cenové plány", href: "/pricing", icon: CreditCard },
     { name: "Nastavení", href: "/settings", icon: Settings }
   ];
 
