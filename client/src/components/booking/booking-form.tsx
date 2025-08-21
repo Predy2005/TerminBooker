@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { publicApi } from "@/lib/api";
 import { CalendarCheck } from "lucide-react";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import type { Service, Organization, TimeSlot } from "@/types";
 
 const bookingSchema = z.object({
@@ -129,7 +130,8 @@ export default function BookingForm({ service, slot, organization }: BookingForm
           </div>
         </div>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <Label htmlFor="customerName">Jméno a příjmení *</Label>
@@ -184,21 +186,27 @@ export default function BookingForm({ service, slot, organization }: BookingForm
             />
           </div>
           
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="terms"
-              {...form.register("terms")}
-              data-testid="checkbox-terms"
-            />
-            <Label htmlFor="terms" className="text-sm text-slate-600">
-              Souhlasím se zpracováním osobních údajů pro účely rezervace *
-            </Label>
-          </div>
-          {form.formState.errors.terms && (
-            <p className="text-sm text-destructive">
-              {form.formState.errors.terms.message}
-            </p>
-          )}
+          <FormField
+            control={form.control}
+            name="terms"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    data-testid="checkbox-terms"
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel className="text-sm text-slate-600">
+                    Souhlasím se zpracováním osobních údajů pro účely rezervace *
+                  </FormLabel>
+                  <FormMessage />
+                </div>
+              </FormItem>
+            )}
+          />
           
           <Button 
             type="submit" 
@@ -209,7 +217,8 @@ export default function BookingForm({ service, slot, organization }: BookingForm
             <CalendarCheck className="mr-2 h-4 w-4" />
             {createBooking.isPending ? "Vytvářím rezervaci..." : "Potvrdit rezervaci"}
           </Button>
-        </form>
+          </form>
+        </Form>
       </CardContent>
     </Card>
   );
