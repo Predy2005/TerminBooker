@@ -77,6 +77,12 @@ export interface IStorage {
   createBookingPayment(payment: InsertBookingPayment): Promise<BookingPayment>;
   updateBookingPaymentByExternalId(externalId: string, update: Partial<InsertBookingPayment>): Promise<BookingPayment>;
   getBookingPaymentByExternalId(externalId: string): Promise<BookingPayment | undefined>;
+
+  // Reset Password
+  storeResetToken(email: string, token: string, expiresAt: Date): Promise<void>;
+  validateResetToken(token: string): Promise<string | null>;
+  consumeResetToken(token: string): Promise<void>;
+  updateUserPassword(email: string, hashedPassword: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -335,6 +341,49 @@ export class DatabaseStorage implements IStorage {
       .from(bookingPayments)
       .where(eq(bookingPayments.externalId, externalId));
     return payment || undefined;
+  }
+
+  // In-memory store for reset tokens (in production, use database table)
+  private resetTokens: Array<{
+    email: string;
+    token: string;
+    expiresAt: Date;
+    createdAt: Date;
+  }> = [];
+
+  // Reset Password
+  async storeResetToken(email: string, token: string, expiresAt: Date): Promise<void> {
+    // Remove any existing tokens for this email
+    this.resetTokens = this.resetTokens.filter(t => t.email !== email);
+    
+    // Add new token
+    this.resetTokens.push({
+      email,
+      token,
+      expiresAt,
+      createdAt: new Date()
+    });
+  }
+
+  async validateResetToken(token: string): Promise<string | null> {
+    const tokenData = this.resetTokens.find(t => t.token === token);
+    
+    if (!tokenData || tokenData.expiresAt < new Date()) {
+      return null;
+    }
+    
+    return tokenData.email;
+  }
+
+  async consumeResetToken(token: string): Promise<void> {
+    this.resetTokens = this.resetTokens.filter(t => t.token !== token);
+  }
+
+  async updateUserPassword(email: string, hashedPassword: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ passwordHash: hashedPassword })
+      .where(eq(users.email, email));
   }
 }
 

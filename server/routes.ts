@@ -31,9 +31,23 @@ import {
   slotsQuerySchema
 } from "./lib/validation";
 import { z } from "zod";
+import crypto from "crypto";
 
 const checkoutRequestSchema = z.object({
   plan: z.enum(['PRO', 'BUSINESS'])
+});
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email()
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string(),
+  password: z.string().min(6)
+});
+
+const validateTokenSchema = z.object({
+  token: z.string()
 });
 
 import path from "path";
@@ -140,6 +154,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
   server.post("/auth/logout", async (request, reply) => {
     clearAuthCookie(reply);
     return { message: "Odhlášení bylo úspěšné" };
+  });
+
+  // Forgot password endpoint
+  server.post("/auth/forgot-password", async (request, reply) => {
+    try {
+      const { email } = forgotPasswordSchema.parse(request.body);
+      
+      // Check if user exists
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        // Don't reveal if email exists or not for security
+        return reply.send({ success: true });
+      }
+
+      // Generate reset token
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+      
+      // Store token
+      await storage.storeResetToken(email, resetToken, expiresAt);
+
+      // In a real app, send email here
+      // For now, we'll log the reset URL to console
+      const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:5000'}/app/auth/reset-password?token=${resetToken}`;
+      console.log(`Password reset URL for ${email}: ${resetUrl}`);
+
+      reply.send({ success: true });
+    } catch (error: any) {
+      console.error("Forgot password error:", error);
+      reply.status(500).send({ message: "Něco se pokazilo" });
+    }
+  });
+
+  // Validate reset token
+  server.post("/auth/validate-reset-token", async (request, reply) => {
+    try {
+      const { token } = validateTokenSchema.parse(request.body);
+      
+      const email = await storage.validateResetToken(token);
+      if (!email) {
+        return reply.status(400).send({ message: "Neplatný nebo expirovaný token" });
+      }
+
+      reply.send({ valid: true });
+    } catch (error: any) {
+      console.error("Token validation error:", error);
+      reply.status(400).send({ message: "Neplatný token" });
+    }
+  });
+
+  // Reset password
+  server.post("/auth/reset-password", async (request, reply) => {
+    try {
+      const { token, password } = resetPasswordSchema.parse(request.body);
+      
+      const email = await storage.validateResetToken(token);
+      if (!email) {
+        return reply.status(400).send({ message: "Neplatný nebo expirovaný token" });
+      }
+
+      // Hash new password
+      const hashedPassword = await hashPassword(password);
+      
+      // Update user password
+      await storage.updateUserPassword(email, hashedPassword);
+      
+      // Consume/remove the token
+      await storage.consumeResetToken(token);
+
+      reply.send({ success: true });
+    } catch (error: any) {
+      console.error("Reset password error:", error);
+      reply.status(500).send({ message: "Něco se pokazilo" });
+    }
   });
 
   // Organization routes

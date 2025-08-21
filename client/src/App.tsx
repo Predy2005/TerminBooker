@@ -11,6 +11,8 @@ import PublicBooking from "@/pages/public-booking";
 import Dashboard from "@/pages/dashboard";
 import Login from "@/pages/auth/login";
 import Register from "@/pages/auth/register";
+import ForgotPassword from "@/pages/auth/forgot-password";
+import ResetPassword from "@/pages/auth/reset-password";
 import Services from "@/pages/services";
 import Availability from "@/pages/availability";
 import Blackouts from "@/pages/blackouts";
@@ -37,6 +39,8 @@ function Router() {
       {/* Auth routes */}
       <Route path="/app/auth/login" component={Login} />
       <Route path="/app/auth/register" component={Register} />
+      <Route path="/app/auth/forgot-password" component={ForgotPassword} />
+      <Route path="/app/auth/reset-password" component={ResetPassword} />
       
       {/* Dashboard routes */}
       <Route path="/app" component={Dashboard} />

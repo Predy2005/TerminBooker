@@ -129,7 +129,14 @@ export default function Login() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center space-y-2">
+              <p className="text-sm text-slate-600">
+                <Link href="/app/auth/forgot-password">
+                  <Button variant="link" className="p-0 h-auto text-blue-600">
+                    Zapomněli jste heslo?
+                  </Button>
+                </Link>
+              </p>
               <p className="text-sm text-slate-600">
                 Nemáte účet?{" "}
                 <Link href="/app/auth/register">
