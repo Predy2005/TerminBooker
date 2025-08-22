@@ -10,7 +10,8 @@ import {
   Settings, 
   CreditCard,
   LogOut,
-  Code
+  Code,
+  Edit
 } from "lucide-react";
 
 export default function Sidebar() {
@@ -18,12 +19,18 @@ export default function Sidebar() {
   const { data: organization } = useOrganization();
   const logout = useLogout();
 
-  const navigation = [
+  const navigation: Array<{
+    name: string;
+    href: string;
+    icon: any;
+    badge?: string;
+  }> = [
     { name: "Přehled", href: "/app", icon: BarChart3 },
     { name: "Rezervace", href: "/app/bookings", icon: Calendar },
     { name: "Služby", href: "/app/services", icon: Bell },
     { name: "Dostupnost", href: "/app/availability", icon: Clock },
     { name: "Blokace", href: "/app/blackouts", icon: Ban },
+    { name: "Editor formuláře", href: "/app/form-editor", icon: Edit, badge: "PRO" },
     { name: "Embed Widget", href: "/app/embed", icon: Code },
     { name: "Fakturace", href: "/app/billing", icon: CreditCard },
     { name: "Nastavení platební brány", href: "/app/billing-symfony", icon: CreditCard },
@@ -60,9 +67,15 @@ export default function Sidebar() {
                       : "text-slate-700 hover:text-primary hover:bg-slate-50"
                   }`}
                   data-testid={`nav-${item.name.toLowerCase()}`}
+                  disabled={item.badge === "PRO" && (organization as any)?.plan !== "PRO"}
                 >
                   <Icon className="mr-3 h-4 w-4" />
                   {item.name}
+                  {item.badge && (
+                    <span className="ml-auto bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs px-2 py-1 rounded-full">
+                      {item.badge}
+                    </span>
+                  )}
                 </Button>
               </Link>
             );

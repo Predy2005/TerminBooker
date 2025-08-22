@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { CardDescription } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -23,82 +24,282 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 
-// Default form structure
-const defaultFormSteps = [
-  {
-    id: "service",
-    name: "Výběr služby",
-    type: "service_selection",
-    required: true,
-    order: 1,
-    fields: []
-  },
-  {
-    id: "datetime", 
-    name: "Datum a čas",
-    type: "datetime_selection",
-    required: true,
-    order: 2,
-    fields: []
-  },
-  {
-    id: "contact",
-    name: "Kontaktní údaje", 
-    type: "contact_form",
-    required: true,
-    order: 3,
-    fields: [
+// Layout templates
+const layoutTemplates = {
+  vertical: {
+    name: "Vertikální (výchozí)",
+    description: "Kroky pod sebou - klasický layout",
+    layout: "vertical",
+    steps: [
       {
-        id: "customerName",
-        name: "Jméno a příjmení",
-        type: "text",
+        id: "service",
+        name: "Výběr služby",
+        type: "service_selection",
         required: true,
-        placeholder: "Zadejte vaše jméno",
-        width: "full"
+        order: 1,
+        fields: []
       },
       {
-        id: "customerEmail", 
-        name: "E-mail",
-        type: "email",
+        id: "datetime", 
+        name: "Datum a čas",
+        type: "datetime_selection",
         required: true,
-        placeholder: "vas@email.cz",
-        width: "full"
+        order: 2,
+        fields: []
       },
       {
-        id: "customerPhone",
-        name: "Telefon",
-        type: "tel", 
-        required: false,
-        placeholder: "+420 xxx xxx xxx",
-        width: "full"
+        id: "contact",
+        name: "Kontaktní údaje", 
+        type: "contact_form",
+        required: true,
+        order: 3,
+        fields: [
+          {
+            id: "customerName",
+            name: "Jméno a příjmení",
+            type: "text",
+            required: true,
+            placeholder: "Zadejte vaše jméno",
+            width: "full" as const
+          },
+          {
+            id: "customerEmail", 
+            name: "E-mail",
+            type: "email",
+            required: true,
+            placeholder: "vas@email.cz",
+            width: "full" as const
+          },
+          {
+            id: "customerPhone",
+            name: "Telefon",
+            type: "tel", 
+            required: false,
+            placeholder: "+420 xxx xxx xxx",
+            width: "full" as const
+          },
+          {
+            id: "note",
+            name: "Poznámka",
+            type: "textarea",
+            required: false,
+            placeholder: "Můžete zde uvést dodatečné informace...",
+            width: "full" as const
+          }
+        ]
       },
       {
-        id: "note",
-        name: "Poznámka",
-        type: "textarea",
-        required: false,
-        placeholder: "Můžete zde uvést dodatečné informace...",
-        width: "full"
+        id: "confirmation",
+        name: "Potvrzení",
+        type: "confirmation",
+        required: true, 
+        order: 4,
+        fields: [
+          {
+            id: "terms",
+            name: "Souhlasím se zpracováním osobních údajů",
+            type: "checkbox",
+            required: true,
+            width: "full" as const
+          }
+        ]
       }
     ]
   },
-  {
-    id: "confirmation",
-    name: "Potvrzení",
-    type: "confirmation",
-    required: true, 
-    order: 4,
-    fields: [
+  horizontal: {
+    name: "Horizontální",
+    description: "Kroky vedle sebe - rychlejší vyplnění",
+    layout: "horizontal",
+    steps: [
       {
-        id: "terms",
-        name: "Souhlasím se zpracováním osobních údajů",
-        type: "checkbox",
+        id: "service_datetime",
+        name: "Služba a čas",
+        type: "service_datetime_combined",
         required: true,
-        width: "full"
+        order: 1,
+        fields: []
+      },
+      {
+        id: "contact",
+        name: "Kontaktní údaje", 
+        type: "contact_form",
+        required: true,
+        order: 2,
+        fields: [
+          {
+            id: "customerName",
+            name: "Jméno a příjmení",
+            type: "text",
+            required: true,
+            placeholder: "Zadejte vaše jméno",
+            width: "half" as const as const
+          },
+          {
+            id: "customerEmail", 
+            name: "E-mail",
+            type: "email",
+            required: true,
+            placeholder: "vas@email.cz",
+            width: "half" as const
+          },
+          {
+            id: "customerPhone",
+            name: "Telefon",
+            type: "tel", 
+            required: false,
+            placeholder: "+420 xxx xxx xxx",
+            width: "half" as const
+          },
+          {
+            id: "note",
+            name: "Poznámka",
+            type: "textarea",
+            required: false,
+            placeholder: "Můžete zde uvést dodatečné informace...",
+            width: "half" as const
+          },
+          {
+            id: "terms",
+            name: "Souhlasím se zpracováním osobních údajů",
+            type: "checkbox",
+            required: true,
+            width: "full" as const
+          }
+        ]
+      }
+    ]
+  },
+  wizard: {
+    name: "Průvodce (krokový)",
+    description: "Jeden krok po druhém s pokračováním",
+    layout: "wizard",
+    steps: [
+      {
+        id: "service",
+        name: "1. Výběr služby",
+        type: "service_selection",
+        required: true,
+        order: 1,
+        fields: []
+      },
+      {
+        id: "datetime", 
+        name: "2. Datum a čas",
+        type: "datetime_selection",
+        required: true,
+        order: 2,
+        fields: []
+      },
+      {
+        id: "contact",
+        name: "3. Vaše údaje", 
+        type: "contact_form",
+        required: true,
+        order: 3,
+        fields: [
+          {
+            id: "customerName",
+            name: "Jméno a příjmení",
+            type: "text",
+            required: true,
+            placeholder: "Zadejte vaše jméno",
+            width: "full" as const
+          },
+          {
+            id: "customerEmail", 
+            name: "E-mail",
+            type: "email",
+            required: true,
+            placeholder: "vas@email.cz",
+            width: "full" as const
+          },
+          {
+            id: "customerPhone",
+            name: "Telefon",
+            type: "tel", 
+            required: false,
+            placeholder: "+420 xxx xxx xxx",
+            width: "full" as const
+          },
+          {
+            id: "note",
+            name: "Poznámka",
+            type: "textarea",
+            required: false,
+            placeholder: "Můžete zde uvést dodatečné informace...",
+            width: "full" as const
+          }
+        ]
+      },
+      {
+        id: "confirmation",
+        name: "4. Potvrzení",
+        type: "confirmation",
+        required: true, 
+        order: 4,
+        fields: [
+          {
+            id: "terms",
+            name: "Souhlasím se zpracováním osobních údajů",
+            type: "checkbox",
+            required: true,
+            width: "full" as const
+          }
+        ]
+      }
+    ]
+  },
+  minimal: {
+    name: "Minimální",
+    description: "Pouze nezbytné údaje - rychlá rezervace",
+    layout: "minimal",
+    steps: [
+      {
+        id: "service_datetime",
+        name: "Služba a čas",
+        type: "service_datetime_combined",
+        required: true,
+        order: 1,
+        fields: []
+      },
+      {
+        id: "contact",
+        name: "Kontakt", 
+        type: "contact_form",
+        required: true,
+        order: 2,
+        fields: [
+          {
+            id: "customerName",
+            name: "Jméno",
+            type: "text",
+            required: true,
+            placeholder: "Vaše jméno",
+            width: "half" as const
+          },
+          {
+            id: "customerEmail", 
+            name: "E-mail",
+            type: "email",
+            required: true,
+            placeholder: "vas@email.cz",
+            width: "half" as const
+          },
+          {
+            id: "terms",
+            name: "Souhlasím s podmínkami",
+            type: "checkbox",
+            required: true,
+            width: "full" as const
+          }
+        ]
       }
     ]
   }
-];
+};
+
+// Default form structure (vertical template)
+const defaultFormSteps = layoutTemplates.vertical.steps;
 
 interface FormField {
   id: string;
@@ -125,7 +326,9 @@ export default function FormEditor() {
   const [selectedStep, setSelectedStep] = useState<string | null>(null);
   const [selectedField, setSelectedField] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
-  const [currentPreset, setCurrentPreset] = useState("default");
+  const [currentPreset, setCurrentPreset] = useState("vertical");
+  const [currentLayout, setCurrentLayout] = useState("vertical");
+  const [showTemplates, setShowTemplates] = useState(false);
   const { toast } = useToast();
 
   // Load organization form layout
@@ -155,9 +358,9 @@ export default function FormEditor() {
 
   // Load saved layout on organization data load
   useEffect(() => {
-    if (organization?.bookingFormLayout) {
-      setSteps(organization.bookingFormLayout.steps || defaultFormSteps);
-      setCurrentPreset(organization.activeLayoutPreset || "default");
+    if (organization && (organization as any).bookingFormLayout) {
+      setSteps((organization as any).bookingFormLayout.steps || defaultFormSteps);
+      setCurrentPreset((organization as any).activeLayoutPreset || "vertical");
     }
   }, [organization]);
 
@@ -218,7 +421,7 @@ export default function FormEditor() {
       type: "text",
       required: false,
       placeholder: "",
-      width: "full"
+      width: "full" as const
     };
 
     setSteps(prev => prev.map(step => {
@@ -256,11 +459,26 @@ export default function FormEditor() {
 
   const resetToDefault = () => {
     setSteps(defaultFormSteps);
-    setCurrentPreset("default");
+    setCurrentPreset("vertical");
+    setCurrentLayout("vertical");
     toast({
       title: "Obnoveno",
       description: "Layout byl obnoven na výchozí nastavení"
     });
+  };
+
+  const applyTemplate = (templateKey: string) => {
+    const template = layoutTemplates[templateKey as keyof typeof layoutTemplates];
+    if (template) {
+      setSteps(template.steps);
+      setCurrentLayout(template.layout);
+      setCurrentPreset(templateKey);
+      setShowTemplates(false);
+      toast({
+        title: "Šablona použita",
+        description: `Layout "${template.name}" byl úspěšně použit`
+      });
+    }
   };
 
   if (previewMode) {
@@ -305,6 +523,10 @@ export default function FormEditor() {
             </div>
             
             <div className="flex items-center space-x-3">
+              <Button onClick={() => setShowTemplates(true)} variant="outline">
+                <Plus className="w-4 h-4 mr-2" />
+                Šablony
+              </Button>
               <Button onClick={() => setPreviewMode(true)} variant="outline">
                 <Eye className="w-4 h-4 mr-2" />
                 Náhled
@@ -326,6 +548,15 @@ export default function FormEditor() {
       </div>
 
       <div className="max-w-7xl mx-auto p-6">
+        {/* Templates Modal */}
+        {showTemplates && (
+          <TemplatesModal
+            onSelectTemplate={applyTemplate}
+            onClose={() => setShowTemplates(false)}
+            currentTemplate={currentPreset}
+          />
+        )}
+        
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Steps Editor */}
           <div className="lg:col-span-2">
@@ -415,7 +646,7 @@ export default function FormEditor() {
               selectedStep={selectedStep ? steps.find(s => s.id === selectedStep) : null}
               selectedField={selectedField}
               steps={steps}
-              onUpdateStep={(stepId, property, value) => {
+              onUpdateStep={(stepId: string, property: string, value: any) => {
                 setSteps(prev => prev.map(step => 
                   step.id === stepId ? { ...step, [property]: value } : step
                 ));
@@ -642,6 +873,85 @@ function PropertiesPanel({ selectedStep, selectedField, steps, onUpdateStep, onU
   );
 }
 
+function TemplatesModal({ onSelectTemplate, onClose, currentTemplate }: {
+  onSelectTemplate: (templateKey: string) => void;
+  onClose: () => void;
+  currentTemplate: string;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+        <div className="p-6 border-b">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold">Vyberte šablonu layoutu</h2>
+            <Button variant="ghost" onClick={onClose}>
+              ×
+            </Button>
+          </div>
+          <p className="text-muted-foreground mt-2">
+            Vyberte z předpřipravených šablon pro rychlé nastavení formuláře
+          </p>
+        </div>
+        
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {Object.entries(layoutTemplates).map(([key, template]) => (
+              <Card 
+                key={key}
+                className={`cursor-pointer transition-colors hover:bg-muted/50 ${
+                  currentTemplate === key ? "ring-2 ring-primary" : ""
+                }`}
+                onClick={() => onSelectTemplate(key)}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    {template.name}
+                    {currentTemplate === key && (
+                      <Badge variant="default">Aktivní</Badge>
+                    )}
+                  </CardTitle>
+                  <CardDescription>{template.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Kroky:</p>
+                    <div className="space-y-1">
+                      {template.steps.map((step, index) => (
+                        <div key={step.id} className="text-sm text-muted-foreground flex items-center">
+                          <span className="w-4 h-4 bg-primary/20 rounded-full flex items-center justify-center text-xs mr-2">
+                            {index + 1}
+                          </span>
+                          {step.name}
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="mt-4 pt-4 border-t">
+                      <div className="text-xs text-muted-foreground">
+                        <strong>Layout:</strong> {template.layout === "vertical" ? "Vertikální" : 
+                                                template.layout === "horizontal" ? "Horizontální" :
+                                                template.layout === "wizard" ? "Průvodce" : "Minimální"}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+        
+        <div className="p-6 border-t bg-muted/30">
+          <div className="flex justify-end space-x-3">
+            <Button variant="outline" onClick={onClose}>
+              Zrušit
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FormPreview({ steps }: { steps: FormStep[] }) {
   return (
     <div className="space-y-6">
@@ -660,6 +970,12 @@ function FormPreview({ steps }: { steps: FormStep[] }) {
             {step.type === "datetime_selection" && (
               <div className="text-muted-foreground">
                 [Náhled výběru data a času]
+              </div>
+            )}
+            
+            {step.type === "service_datetime_combined" && (
+              <div className="text-muted-foreground">
+                [Náhled kombinovaného výběru služby a času]
               </div>
             )}
             

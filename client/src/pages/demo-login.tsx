@@ -13,7 +13,8 @@ import {
   Code, 
   Eye,
   Users,
-  BarChart3
+  BarChart3,
+  Edit
 } from "lucide-react";
 
 export default function DemoLogin() {
@@ -59,6 +60,11 @@ export default function DemoLogin() {
       icon: Users,
       title: "Dostupnost & Blokace",
       description: "Nastavení pracovních hodin a blokování termínů pro dovolené či školení"
+    },
+    {
+      icon: Edit,
+      title: "Editor formuláře (PRO)",
+      description: "Drag & drop editor s přednastavenými šablonami - vertikální, horizontální, průvodce, minimální"
     },
     {
       icon: Code,
