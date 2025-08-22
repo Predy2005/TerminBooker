@@ -273,11 +273,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     // Return demo data for demo user
     if (user.userId === demoUser.id) {
-      return demoOrganization;
+      return reply.send(demoOrganization);
     }
     
     const organization = await storage.getOrganization(user.organizationId);
-    return organization;
+    return reply.send(organization);
   });
 
   server.patch("/org", async (request, reply) => {
@@ -369,11 +369,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     // Return demo data for demo user
     if (user.userId === demoUser.id) {
-      return demoServices;
+      return reply.send(demoServices);
     }
     
     const services = await storage.getServices(user.organizationId);
-    return services;
+    return reply.send(services);
   });
 
   server.post("/services", async (request, reply) => {
@@ -419,11 +419,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     // Return demo data for demo user
     if (user.userId === demoUser.id) {
-      return demoAvailability;
+      return reply.send(demoAvailability);
     }
     
     const templates = await storage.getAvailabilityTemplates(user.organizationId);
-    return templates;
+    return reply.send(templates);
   });
 
   server.post("/availability", async (request, reply) => {
@@ -456,11 +456,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     // Return demo data for demo user
     if (user.userId === demoUser.id) {
-      return demoBlackouts;
+      return reply.send(demoBlackouts);
     }
     
     const blackouts = await storage.getBlackouts(user.organizationId);
-    return blackouts;
+    return reply.send(blackouts);
   });
 
   server.post("/blackouts", async (request, reply) => {
@@ -723,7 +723,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           filteredBookings = filteredBookings.filter(booking => booking.status === query.status);
         }
         
-        return filteredBookings;
+        return reply.send(filteredBookings);
       }
       
       const filters: any = {};
@@ -733,9 +733,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (query.status) filters.status = query.status;
 
       const bookings = await storage.getBookings(user.organizationId, filters);
-      return bookings;
+      return reply.send(bookings);
     } catch (error: any) {
       return reply.status(400).send({ message: error.message || "Chyba při načítání rezervací" });
+    }
+  });
+
+  // Export bookings to CSV
+  server.get("/bookings/export", async (request, reply) => {
+    try {
+      const user = await requireAuth(request, reply);
+      const query = bookingsQuerySchema.parse(request.query);
+      
+      let bookings;
+      
+      // Handle demo data
+      if (user.userId === demoUser.id) {
+        bookings = [...demoBookings];
+        
+        // Apply filters to demo data
+        if (query.from) {
+          const fromDate = new Date(query.from);
+          bookings = bookings.filter(booking => new Date(booking.date) >= fromDate);
+        }
+        if (query.to) {
+          const toDate = new Date(query.to);
+          bookings = bookings.filter(booking => new Date(booking.date) <= toDate);
+        }
+        if (query.serviceId) {
+          bookings = bookings.filter(booking => booking.serviceId === query.serviceId);
+        }
+        if (query.status) {
+          bookings = bookings.filter(booking => booking.status === query.status);
+        }
+      } else {
+        const filters: any = {};
+        if (query.from) filters.from = new Date(query.from);
+        if (query.to) filters.to = new Date(query.to);
+        if (query.serviceId) filters.serviceId = query.serviceId;
+        if (query.status) filters.status = query.status;
+
+        bookings = await storage.getBookings(user.organizationId, filters);
+      }
+      
+      // Generate CSV content
+      const csvHeaders = ["Datum", "Čas", "Služba", "Zákazník", "Email", "Telefon", "Stav", "Cena", "Poznámka"];
+      const csvRows = bookings.map(booking => {
+        // Handle demo data vs real data structure differences
+        const date = booking.date || new Date(booking.startsAt).toLocaleDateString('cs-CZ');
+        const time = booking.time || new Date(booking.startsAt).toLocaleTimeString('cs-CZ', {hour: '2-digit', minute: '2-digit'});
+        const serviceName = booking.serviceName || "Neznámá služba";
+        const price = booking.price || booking.paymentAmount || "";
+        const notes = booking.notes || "";
+        
+        return [
+          date,
+          time,
+          serviceName,
+          booking.customerName,
+          booking.customerEmail,
+          booking.customerPhone || "",
+          booking.status === "CONFIRMED" || booking.status === "confirmed" ? "Potvrzeno" : 
+          booking.status === "PENDING" || booking.status === "pending" ? "Čeká" :
+          booking.status === "CANCELLED" || booking.status === "cancelled" ? "Zrušeno" : booking.status,
+          price ? `${price} Kč` : "",
+          notes
+        ];
+      });
+      
+      const csvContent = [csvHeaders, ...csvRows]
+        .map(row => row.map(field => `"${field}"`).join(","))
+        .join("\n");
+      
+      reply.header('Content-Type', 'text/csv; charset=utf-8');
+      reply.header('Content-Disposition', 'attachment; filename="rezervace.csv"');
+      return reply.send('\ufeff' + csvContent); // UTF-8 BOM for proper Czech characters
+    } catch (error: any) {
+      return reply.status(400).send({ message: error.message || "Chyba při exportu rezervací" });
     }
   });
 

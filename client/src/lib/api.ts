@@ -172,7 +172,7 @@ export const bookingsApi = {
     if (params?.serviceId) searchParams.set("serviceId", params.serviceId);
     if (params?.status) searchParams.set("status", params.status);
     
-    const url = `/api/bookings/export.csv${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+    const url = `/api/bookings/export${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
     const response = await apiRequest("GET", url);
     return response.blob();
   }
