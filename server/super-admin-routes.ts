@@ -309,12 +309,12 @@ const demoAuditLogs = [
 
 export async function registerSuperAdminRoutes(fastify: FastifyInstance) {
   // Analytics endpoint
-  fastify.get("/super-admin/analytics", async (request, reply) => {
+  fastify.get("/admin/analytics", async (request, reply) => {
     return demoAnalytics;
   });
 
-  // Organizations management
-  fastify.get("/super-admin/organizations", async (request, reply) => {
+  // Organizations management 
+  fastify.get("/admin/orgs", async (request, reply) => {
     const { status, plan, search, sortBy, sortOrder } = request.query as any;
     
     let filtered = [...demoOrganizations];
@@ -371,7 +371,7 @@ export async function registerSuperAdminRoutes(fastify: FastifyInstance) {
     return filtered;
   });
 
-  fastify.patch("/super-admin/organizations/:id", async (request, reply) => {
+  fastify.patch("/admin/orgs/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const updateData = request.body;
     
@@ -379,7 +379,7 @@ export async function registerSuperAdminRoutes(fastify: FastifyInstance) {
     return { success: true, message: "Organizace byla aktualizována" };
   });
 
-  fastify.post("/super-admin/organizations/:id/deactivate", async (request, reply) => {
+  fastify.post("/admin/orgs/:id/status", async (request, reply) => {
     const { id } = request.params as { id: string };
     const { reason } = request.body as { reason: string };
     
@@ -387,15 +387,15 @@ export async function registerSuperAdminRoutes(fastify: FastifyInstance) {
     return { success: true, message: "Organizace byla deaktivována" };
   });
 
-  fastify.post("/super-admin/organizations/:id/activate", async (request, reply) => {
+  fastify.post("/admin/orgs/:id/impersonate", async (request, reply) => {
     const { id } = request.params as { id: string };
     
     // In real implementation, this would update the database
     return { success: true, message: "Organizace byla aktivována" };
   });
 
-  // Users management
-  fastify.get("/super-admin/users", async (request, reply) => {
+  // Users management  
+  fastify.get("/admin/orgs/:id/users", async (request, reply) => {
     const { organizationId, search, status } = request.query as any;
     
     let filtered = [...demoUsers];
@@ -420,31 +420,30 @@ export async function registerSuperAdminRoutes(fastify: FastifyInstance) {
     return filtered;
   });
 
-  fastify.patch("/super-admin/users/:id", async (request, reply) => {
+  fastify.patch("/admin/users/:userId", async (request, reply) => {
     const { id } = request.params as { id: string };
     const updateData = request.body;
     
     return { success: true, message: "Uživatel byl aktualizován" };
   });
 
-  fastify.post("/super-admin/impersonate", async (request, reply) => {
-    const { targetUserId, reason } = request.body as { targetUserId: string; reason: string };
+  fastify.post("/admin/users/:userId/reset-password", async (request, reply) => {
+    const { userId } = request.params as { userId: string };
     
     // In real implementation, this would:
     // 1. Validate super admin permissions
-    // 2. Create impersonation session
-    // 3. Log the action
-    // 4. Return auth token for target user
+    // 2. Generate new password
+    // 3. Hash and save password
+    // 4. Send email to user
     
     return {
       success: true,
-      message: "Impersonace byla spuštěna",
-      redirectUrl: "/app"
+      message: "Heslo bylo resetováno a odesláno uživateli"
     };
   });
 
   // Services management
-  fastify.get("/super-admin/services", async (request, reply) => {
+  fastify.get("/admin/services", async (request, reply) => {
     const { organizationId } = request.query as any;
     
     // Demo services data - would come from database
@@ -480,7 +479,7 @@ export async function registerSuperAdminRoutes(fastify: FastifyInstance) {
   });
 
   // Bookings management
-  fastify.get("/super-admin/bookings", async (request, reply) => {
+  fastify.get("/admin/bookings", async (request, reply) => {
     const { organizationId, from, to, status, serviceId } = request.query as any;
     
     // Demo bookings data
@@ -536,12 +535,12 @@ export async function registerSuperAdminRoutes(fastify: FastifyInstance) {
     return filtered;
   });
 
-  // Billing plans
-  fastify.get("/super-admin/billing/plans", async (request, reply) => {
+  // Billing management  
+  fastify.get("/admin/billing/summary", async (request, reply) => {
     return demoBillingPlans;
   });
 
-  fastify.post("/super-admin/billing/plans", async (request, reply) => {
+  fastify.post("/admin/orgs/:id/plan", async (request, reply) => {
     const planData = request.body;
     
     return {
@@ -552,7 +551,7 @@ export async function registerSuperAdminRoutes(fastify: FastifyInstance) {
   });
 
   // Invoices
-  fastify.get("/super-admin/billing/invoices", async (request, reply) => {
+  fastify.get("/admin/invoices", async (request, reply) => {
     const { organizationId, status, from, to } = request.query as any;
     
     let filtered = [...demoInvoices];
@@ -568,7 +567,7 @@ export async function registerSuperAdminRoutes(fastify: FastifyInstance) {
     return filtered;
   });
 
-  fastify.post("/super-admin/billing/invoices", async (request, reply) => {
+  fastify.post("/admin/invoices/generate", async (request, reply) => {
     const invoiceData = request.body;
     
     return {

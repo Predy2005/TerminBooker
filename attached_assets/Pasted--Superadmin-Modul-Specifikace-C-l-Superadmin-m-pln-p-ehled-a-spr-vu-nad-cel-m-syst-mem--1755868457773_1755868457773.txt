@@ -1,0 +1,84 @@
+
+# Superadmin Modul – Specifikace
+
+## Cíl
+Superadmin má plný přehled a správu nad celým systémem:
+- správa podniků (organizací), uživatelů a jejich přístupů,
+- čtení/úprava služeb, šablon dostupnosti, blackoutů a rezervací,
+- filtrace, statistiky a exporty,
+- billing: správa plánů, generování měsíčních faktur (nebo Stripe invoicing),
+- bezpečnost: audit log, deaktivace/povolení podniků, impersonace.
+
+## 1) Role a práva
+- SUPERADMIN – přístup k /api/admin/*, může číst/upravovat cokoliv, impersonovat uživatele organizace.
+- ADMIN (organizace) – beze změny.
+- Endpointy /api/admin/* chránit zvláštním middleware (ověření role z JWT).
+
+## 2) Datový model – změny
+- Tabulka organizations: doplnit pole billing_plan, status, registered_at.
+- Tabulka invoices: id, org_id, period_from, period_to, amount, status (open/paid/void), pdf_url.
+- Audit_log: id, user_id, org_id, action, created_at, meta (JSON).
+
+## 3) API – přehled endpointů
+### Organizace
+- GET /api/admin/orgs
+- GET /api/admin/orgs/:id
+- PATCH /api/admin/orgs/:id
+- POST /api/admin/orgs/:id/status
+- POST /api/admin/orgs/:id/impersonate
+
+### Uživatelé
+- GET /api/admin/orgs/:id/users
+- PATCH /api/admin/users/:userId
+- POST /api/admin/users/:userId/reset-password
+
+### Služby, dostupnost, blackouty, rezervace
+- CRUD endpoints pro services, availability, blackouts, bookings
+
+### Billing
+- GET /api/admin/billing/summary
+- POST /api/admin/orgs/:id/plan
+- POST /api/admin/orgs/:id/stripe/sync
+
+### Faktury
+- POST /api/admin/invoices/generate
+- GET /api/admin/invoices
+- GET /api/admin/invoices/:id
+- POST /api/admin/invoices/:id/mark-paid
+- POST /api/admin/invoices/:id/void
+
+## 4) Statistika a metriky
+- Počty rezervací (celkem, 7/30 dní)
+- Top služby
+- Využití limitů dle plánu
+- Audit log poslední akce
+
+## 5) Admin UI (React)
+- /superadmin/orgs – tabulka organizací
+- /superadmin/orgs/:id – detail s metrikami, službami, uživateli, billingem
+- /superadmin/invoices – přehled faktur
+- /superadmin/audit – audit log
+
+## 6) Bezpečnost
+- RBAC jen pro SUPERADMIN
+- Audit log pro všechny akce
+- Impersonace přes jednorázový JWT token
+- GDPR – role-based access a logování
+
+## 7) Fakturace
+- Varianta A: Stripe Billing (doporučeno)
+- Varianta B: Vlastní faktury (tabulka invoices, cron generace, PDF)
+
+## 8) Crony
+- Monthly invoicing
+- Data hygiene
+- Recount metrics
+
+## 9) Akceptační kritéria
+- Superadmin vidí list všech orgs s filtry
+- Umí měnit plány, suspendovat/povolit, impersonovat
+- Vidí/upravuje služby a rezervace organizací
+- Reset hesel adminů organizací
+- Statistiky funkční
+- Fakturace generuje měsíční doklady
+- Audit log zaznamenává všechny akce
