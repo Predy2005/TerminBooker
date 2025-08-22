@@ -156,6 +156,7 @@ const demoInvoices = [
     status: "paid",
     dueDate: "2025-09-01T00:00:00Z",
     createdAt: "2025-08-01T10:00:00Z",
+    paidAt: "2025-08-01T14:30:00Z",
     items: [
       { description: "Pro plán - srpen 2025", quantity: 1, unitPrice: 599, total: 599 }
     ]
@@ -169,9 +170,95 @@ const demoInvoices = [
     status: "sent",
     dueDate: "2025-09-05T00:00:00Z",
     createdAt: "2025-08-05T12:00:00Z",
+    paidAt: null,
     items: [
       { description: "Základní plán - srpen 2025", quantity: 1, unitPrice: 299, total: 299 }
     ]
+  },
+  {
+    id: "inv-3",
+    organizationId: "org-3",
+    organizationName: "Veterinární klinika Zdraví",
+    amount: 0,
+    currency: "CZK", 
+    status: "paid",
+    dueDate: "2025-09-10T00:00:00Z",
+    createdAt: "2025-08-10T09:15:00Z",
+    paidAt: "2025-08-10T09:15:00Z",
+    items: [
+      { description: "Zdarma plán - srpen 2025", quantity: 1, unitPrice: 0, total: 0 }
+    ]
+  }
+];
+
+const demoBookingPayments = [
+  {
+    id: "payment-1",
+    organizationId: "org-1",
+    organizationName: "Salon Krása",
+    bookingId: "booking-1",
+    serviceName: "Střih a foukaná",
+    customerName: "Anna Nováková",
+    customerEmail: "anna.novakova@email.cz",
+    amount: 800,
+    currency: "CZK",
+    status: "completed",
+    paymentDate: "2025-08-22T10:00:00Z",
+    paymentMethod: "card",
+    stripeChargeId: "ch_demo123",
+    platformFee: 32, // 4% platform fee
+    organizationReceived: 768
+  },
+  {
+    id: "payment-2", 
+    organizationId: "org-2",
+    organizationName: "Fitness Studio Active",
+    bookingId: "booking-2",
+    serviceName: "Osobní trénink",
+    customerName: "Pavel Dvořák",
+    customerEmail: "pavel.dvorak@email.cz",
+    amount: 600,
+    currency: "CZK",
+    status: "pending",
+    paymentDate: null,
+    paymentMethod: null,
+    stripeChargeId: null,
+    platformFee: 0,
+    organizationReceived: 0
+  },
+  {
+    id: "payment-3",
+    organizationId: "org-1", 
+    organizationName: "Salon Krása",
+    bookingId: "booking-3",
+    serviceName: "Barva + foukaná",
+    customerName: "Marie Svobodová",
+    customerEmail: "marie.svobodova@email.cz",
+    amount: 1200,
+    currency: "CZK",
+    status: "completed",
+    paymentDate: "2025-08-21T14:30:00Z",
+    paymentMethod: "card",
+    stripeChargeId: "ch_demo456",
+    platformFee: 48, // 4% platform fee
+    organizationReceived: 1152
+  },
+  {
+    id: "payment-4",
+    organizationId: "org-2",
+    organizationName: "Fitness Studio Active", 
+    bookingId: "booking-4",
+    serviceName: "Skupinový trénink",
+    customerName: "Tomáš Novák",
+    customerEmail: "tomas.novak@email.cz",
+    amount: 300,
+    currency: "CZK",
+    status: "completed",
+    paymentDate: "2025-08-20T18:00:00Z",
+    paymentMethod: "card",
+    stripeChargeId: "ch_demo789",
+    platformFee: 12, // 4% platform fee  
+    organizationReceived: 288
   }
 ];
 
@@ -513,6 +600,62 @@ export async function registerSuperAdminRoutes(fastify: FastifyInstance) {
     filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     
     return filtered.slice(0, parseInt(limit));
+  });
+
+  // Booking payments
+  fastify.get("/super-admin/booking-payments", async (request, reply) => {
+    const { organizationId, status, from, to, limit = 100 } = request.query as any;
+    
+    let filtered = [...demoBookingPayments];
+    
+    if (organizationId && organizationId !== "all") {
+      filtered = filtered.filter(payment => payment.organizationId === organizationId);
+    }
+    
+    if (status && status !== "all") {
+      filtered = filtered.filter(payment => payment.status === status);
+    }
+    
+    // Sort by payment date descending
+    filtered.sort((a, b) => {
+      const dateA = a.paymentDate ? new Date(a.paymentDate).getTime() : 0;
+      const dateB = b.paymentDate ? new Date(b.paymentDate).getTime() : 0;
+      return dateB - dateA;
+    });
+    
+    return filtered.slice(0, parseInt(limit));
+  });
+
+  // Organization billing status
+  fastify.get("/super-admin/organizations/:id/billing", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    
+    const organization = demoOrganizations.find(org => org.id === id);
+    if (!organization) {
+      return reply.status(404).send({ message: "Organizace nebyla nalezena" });
+    }
+    
+    const invoices = demoInvoices.filter(inv => inv.organizationId === id);
+    const payments = demoBookingPayments.filter(pay => pay.organizationId === id);
+    
+    const totalPaid = invoices.filter(inv => inv.status === "paid").reduce((sum, inv) => sum + inv.amount, 0);
+    const totalPending = invoices.filter(inv => inv.status === "sent").reduce((sum, inv) => sum + inv.amount, 0);
+    const totalBookingRevenue = payments.filter(pay => pay.status === "completed").reduce((sum, pay) => sum + pay.organizationReceived, 0);
+    const totalPlatformFees = payments.filter(pay => pay.status === "completed").reduce((sum, pay) => sum + pay.platformFee, 0);
+    
+    return {
+      organization,
+      billingPlan: demoBillingPlans.find(plan => plan.id === `plan-${organization.plan}`),
+      invoices,
+      payments: payments.slice(0, 20), // Latest 20 payments
+      summary: {
+        totalPaid,
+        totalPending,
+        totalBookingRevenue,
+        totalPlatformFees,
+        nextBillingDate: "2025-09-01T00:00:00Z"
+      }
+    };
   });
 
   // Export endpoints

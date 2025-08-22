@@ -11,88 +11,463 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { superAdminApi } from "@/lib/super-admin-api";
-import { CreditCard, FileText, Plus, Edit, Download, Send, CheckCircle, X } from "lucide-react";
+import { CreditCard, Search, Plus, Download, FileText, DollarSign, Receipt, TrendingUp, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
 
-export default function SuperAdminBilling() {
-  const [selectedPlan, setSelectedPlan] = useState<any>(null);
-  const [isCreatePlanOpen, setIsCreatePlanOpen] = useState(false);
-  const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
-  const [invoiceFilters, setInvoiceFilters] = useState({
-    organizationId: "",
-    status: "all",
-    from: "",
-    to: ""
-  });
-  
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  const { data: plans = [], isLoading: plansLoading } = useQuery({
+function BillingPlansTab() {
+  const { data: plans, isLoading: plansLoading } = useQuery({
     queryKey: ["/api/super-admin/billing/plans"],
     queryFn: superAdminApi.getBillingPlans
   });
 
-  const { data: invoices = [], isLoading: invoicesLoading } = useQuery({
-    queryKey: ["/api/super-admin/billing/invoices", invoiceFilters],
-    queryFn: () => superAdminApi.getInvoices(invoiceFilters)
+  const { data: invoices, isLoading: invoicesLoading } = useQuery({
+    queryKey: ["/api/super-admin/billing/invoices"],
+    queryFn: () => superAdminApi.getInvoices({})
   });
-
-  const { data: organizations = [] } = useQuery({
-    queryKey: ["/api/super-admin/organizations", { status: "all" }],
-    queryFn: () => superAdminApi.getOrganizations({ status: "all" })
-  });
-
-  const createPlanMutation = useMutation({
-    mutationFn: superAdminApi.createBillingPlan,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/super-admin/billing/plans"] });
-      setIsCreatePlanOpen(false);
-      toast({
-        title: "Plán vytvořen",
-        description: "Nový plán byl úspěšně vytvořen"
-      });
-    }
-  });
-
-  const generateInvoiceMutation = useMutation({
-    mutationFn: superAdminApi.generateInvoice,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/super-admin/billing/invoices"] });
-      setIsCreateInvoiceOpen(false);
-      toast({
-        title: "Faktura vygenerována",
-        description: "Nová faktura byla úspěšně vygenerována"
-      });
-    }
-  });
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "paid":
-        return <Badge variant="default" className="bg-green-100 text-green-800">Zaplaceno</Badge>;
-      case "sent":
-        return <Badge className="bg-blue-100 text-blue-800">Odesláno</Badge>;
-      case "draft":
-        return <Badge variant="outline">Koncept</Badge>;
-      case "overdue":
-        return <Badge variant="destructive">Po splatnosti</Badge>;
-      case "cancelled":
-        return <Badge variant="secondary">Stornováno</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
 
   if (plansLoading || invoicesLoading) {
     return (
-      <div className="flex items-center justify-center h-96">
+      <div className="flex items-center justify-center h-64">
         <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }
 
+  return (
+    <div className="space-y-6">
+      {/* Billing Plans */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Billing plány
+          </CardTitle>
+          <CardDescription>
+            Přehled všech dostupných plánů pro organizace
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {plans?.map((plan: any) => (
+              <Card key={plan.id} className="p-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-medium">{plan.name}</h3>
+                    <Badge variant={plan.popular ? "default" : "secondary"}>
+                      {plan.popular ? "Populární" : "Standard"}
+                    </Badge>
+                  </div>
+                  <p className="text-2xl font-bold">
+                    {plan.price} Kč
+                    <span className="text-sm font-normal text-muted-foreground">/měsíc</span>
+                  </p>
+                  <p className="text-sm text-muted-foreground">{plan.description}</p>
+                  <div className="pt-2">
+                    <p className="text-xs text-muted-foreground">
+                      Limit rezervací: {plan.features.bookingLimit === -1 ? "Neomezeno" : plan.features.bookingLimit}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Stripe Connect: {plan.features.stripeConnect ? "Ano" : "Ne"}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Recent Invoices */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Nedávné faktury
+          </CardTitle>
+          <CardDescription>
+            Nejnovější faktury za předplatné organizací
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {invoices?.slice(0, 5).map((invoice: any) => (
+              <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="space-y-1">
+                  <p className="font-medium">{invoice.organizationName}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {invoice.items[0]?.description}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Vytvořeno: {format(new Date(invoice.createdAt), "d. M. yyyy", { locale: cs })}
+                  </p>
+                </div>
+                <div className="text-right space-y-1">
+                  <p className="font-medium">{invoice.amount} Kč</p>
+                  <Badge variant={
+                    invoice.status === "paid" ? "default" : 
+                    invoice.status === "sent" ? "secondary" : "destructive"
+                  }>
+                    {invoice.status === "paid" ? "Zaplaceno" : 
+                     invoice.status === "sent" ? "Odesláno" : "Neúspěšné"}
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function BookingPaymentsTab() {
+  const [filters, setFilters] = useState({
+    organizationId: "all",
+    status: "all"
+  });
+
+  const { data: organizations } = useQuery({
+    queryKey: ["/api/super-admin/organizations"],
+    queryFn: () => superAdminApi.getOrganizations({})
+  });
+
+  const { data: payments, isLoading } = useQuery({
+    queryKey: ["/api/super-admin/booking-payments", filters],
+    queryFn: () => superAdminApi.getBookingPayments(filters)
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  const totalRevenue = payments?.filter((p: any) => p.status === "completed")
+    .reduce((sum: number, p: any) => sum + p.organizationReceived, 0) || 0;
+  const totalFees = payments?.filter((p: any) => p.status === "completed")
+    .reduce((sum: number, p: any) => sum + p.platformFee, 0) || 0;
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Celkové tržby podniků</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalRevenue.toLocaleString('cs-CZ')} Kč</div>
+            <p className="text-xs text-muted-foreground">Za dokončené platby</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Platformové poplatky</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalFees.toLocaleString('cs-CZ')} Kč</div>
+            <p className="text-xs text-muted-foreground">4% z dokončených plateb</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Počet plateb</CardTitle>
+            <Receipt className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{payments?.length || 0}</div>
+            <p className="text-xs text-muted-foreground">Celkem plateb</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Filtry</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Organizace</Label>
+              <Select
+                value={filters.organizationId}
+                onValueChange={(value) => setFilters({ ...filters, organizationId: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Všechny organizace" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Všechny organizace</SelectItem>
+                  {organizations?.map((org: any) => (
+                    <SelectItem key={org.id} value={org.id}>
+                      {org.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Stav platby</Label>
+              <Select
+                value={filters.status}
+                onValueChange={(value) => setFilters({ ...filters, status: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Všechny stavy" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Všechny stavy</SelectItem>
+                  <SelectItem value="completed">Dokončeno</SelectItem>
+                  <SelectItem value="pending">Čekající</SelectItem>
+                  <SelectItem value="failed">Neúspěšné</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Payments List */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Platby za rezervace</CardTitle>
+          <CardDescription>
+            Přehled všech plateb od klientů za rezervace služeb
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {payments?.map((payment: any) => (
+              <div key={payment.id} className="border rounded-lg p-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <p className="font-medium">{payment.organizationName}</p>
+                    <p className="text-sm text-muted-foreground">{payment.serviceName}</p>
+                  </div>
+                  <div>
+                    <p className="font-medium">{payment.customerName}</p>
+                    <p className="text-sm text-muted-foreground">{payment.customerEmail}</p>
+                  </div>
+                  <div>
+                    <p className="font-medium">{payment.amount} Kč</p>
+                    <p className="text-sm text-muted-foreground">
+                      Podnik: {payment.organizationReceived} Kč | Poplatek: {payment.platformFee} Kč
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Badge variant={
+                        payment.status === "completed" ? "default" : 
+                        payment.status === "pending" ? "secondary" : "destructive"
+                      }>
+                        {payment.status === "completed" ? "Dokončeno" : 
+                         payment.status === "pending" ? "Čekající" : "Neúspěšné"}
+                      </Badge>
+                      {payment.paymentDate && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {format(new Date(payment.paymentDate), "d. M. yyyy H:mm", { locale: cs })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function OrganizationBillingTab() {
+  const [selectedOrgId, setSelectedOrgId] = useState<string>("");
+
+  const { data: organizations } = useQuery({
+    queryKey: ["/api/super-admin/organizations"],
+    queryFn: () => superAdminApi.getOrganizations({})
+  });
+
+  const { data: billingDetails, isLoading } = useQuery({
+    queryKey: ["/api/super-admin/organizations", selectedOrgId, "billing"],
+    queryFn: () => superAdminApi.getOrganizationBilling(selectedOrgId),
+    enabled: !!selectedOrgId
+  });
+
+  return (
+    <div className="space-y-6">
+      {/* Organization Selector */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Vyberte organizaci</CardTitle>
+          <CardDescription>
+            Zobrazí detailní billing informace pro vybranou organizaci
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Select value={selectedOrgId} onValueChange={setSelectedOrgId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Vyberte organizaci..." />
+            </SelectTrigger>
+            <SelectContent>
+              {organizations?.map((org: any) => (
+                <SelectItem key={org.id} value={org.id}>
+                  {org.name} - {org.plan} plán
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      {/* Billing Details */}
+      {selectedOrgId && (
+        <>
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+            </div>
+          ) : billingDetails ? (
+            <div className="space-y-6">
+              {/* Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Aktuální plán</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{billingDetails.billingPlan?.name}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {billingDetails.billingPlan?.price} Kč/měsíc
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Zaplaceno celkem</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-600">
+                      {billingDetails.summary.totalPaid.toLocaleString('cs-CZ')} Kč
+                    </div>
+                    <p className="text-xs text-muted-foreground">Za předplatné</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Tržby z rezervací</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {billingDetails.summary.totalBookingRevenue.toLocaleString('cs-CZ')} Kč
+                    </div>
+                    <p className="text-xs text-muted-foreground">Přijato organizací</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Naše poplatky</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-purple-600">
+                      {billingDetails.summary.totalPlatformFees.toLocaleString('cs-CZ')} Kč
+                    </div>
+                    <p className="text-xs text-muted-foreground">4% z rezervací</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Recent Invoices */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Faktury za předplatné</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {billingDetails.invoices.map((invoice: any) => (
+                      <div key={invoice.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <p className="font-medium">{invoice.items[0]?.description}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {format(new Date(invoice.createdAt), "d. M. yyyy", { locale: cs })}
+                            {invoice.paidAt && (
+                              <span> - Zaplaceno {format(new Date(invoice.paidAt), "d. M. yyyy", { locale: cs })}</span>
+                            )}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">{invoice.amount} Kč</p>
+                          <Badge variant={invoice.status === "paid" ? "default" : "secondary"}>
+                            {invoice.status === "paid" ? "Zaplaceno" : "Odesláno"}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Recent Booking Payments */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Nedávné platby za rezervace</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {billingDetails.payments.map((payment: any) => (
+                      <div key={payment.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <p className="font-medium">{payment.serviceName}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {payment.customerName} - {payment.customerEmail}
+                          </p>
+                          {payment.paymentDate && (
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(payment.paymentDate), "d. M. yyyy H:mm", { locale: cs })}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">{payment.amount} Kč</p>
+                          <p className="text-sm text-muted-foreground">
+                            Organizace: {payment.organizationReceived} Kč | Poplatek: {payment.platformFee} Kč
+                          </p>
+                          <Badge variant={payment.status === "completed" ? "default" : "secondary"}>
+                            {payment.status === "completed" ? "Dokončeno" : "Čekající"}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="py-8 text-center">
+                <p className="text-muted-foreground">Nepodařilo se načíst billing informace</p>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+export default function SuperAdminBilling() {
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -101,487 +476,36 @@ export default function SuperAdminBilling() {
           Billing & Faktury
         </h1>
         <p className="text-muted-foreground mt-2">
-          Správa předplatných plánů a fakturace
+          Správa předplatného, faktur a plateb za rezervace
         </p>
       </div>
 
+      {/* Tabs */}
       <Tabs defaultValue="plans" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="plans" data-testid="tab-plans">Plány</TabsTrigger>
-          <TabsTrigger value="invoices" data-testid="tab-invoices">Faktury</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="plans" data-testid="tab-billing-plans">
+            Plány & Faktury
+          </TabsTrigger>
+          <TabsTrigger value="payments" data-testid="tab-booking-payments">
+            Platby za rezervace
+          </TabsTrigger>
+          <TabsTrigger value="organization" data-testid="tab-organization-billing">
+            Detail organizace
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="plans" className="space-y-6">
-          {/* Plans Header */}
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Předplatné plány</h2>
-            <Dialog open={isCreatePlanOpen} onOpenChange={setIsCreatePlanOpen}>
-              <DialogTrigger asChild>
-                <Button data-testid="button-create-plan">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nový plán
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Vytvořit nový plán</DialogTitle>
-                </DialogHeader>
-                <CreatePlanForm 
-                  onSubmit={(data) => createPlanMutation.mutate(data)}
-                  isLoading={createPlanMutation.isPending}
-                />
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          {/* Plans Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {plans.map((plan) => (
-              <Card key={plan.id} className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <CardTitle className="flex justify-between items-center">
-                    {plan.name}
-                    <Button size="sm" variant="ghost">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </CardTitle>
-                  <CardDescription>
-                    {plan.price.toLocaleString('cs-CZ')} {plan.currency} / {plan.interval === "month" ? "měsíc" : "rok"}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="text-sm">
-                      <strong>Funkce:</strong>
-                      <ul className="list-disc list-inside mt-1 text-muted-foreground">
-                        {plan.features.map((feature, index) => (
-                          <li key={index}>{feature}</li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div className="text-sm">
-                      <div><strong>Max služeb:</strong> {plan.maxServices || "Neomezeno"}</div>
-                      <div><strong>Max rezervací:</strong> {plan.maxBookings || "Neomezeno"}</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-
-            {plans.length === 0 && (
-              <Card className="col-span-full">
-                <CardContent className="text-center py-12">
-                  <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Žádné plány</h3>
-                  <p className="text-muted-foreground">
-                    Zatím nejsou vytvořeny žádné předplatné plány
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+        <TabsContent value="plans">
+          <BillingPlansTab />
         </TabsContent>
 
-        <TabsContent value="invoices" className="space-y-6">
-          {/* Invoices Header */}
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Faktury</h2>
-            <Dialog open={isCreateInvoiceOpen} onOpenChange={setIsCreateInvoiceOpen}>
-              <DialogTrigger asChild>
-                <Button data-testid="button-create-invoice">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nová faktura
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Vygenerovat fakturu</DialogTitle>
-                </DialogHeader>
-                <CreateInvoiceForm 
-                  organizations={organizations}
-                  onSubmit={(data) => generateInvoiceMutation.mutate(data)}
-                  isLoading={generateInvoiceMutation.isPending}
-                />
-              </DialogContent>
-            </Dialog>
-          </div>
+        <TabsContent value="payments">
+          <BookingPaymentsTab />
+        </TabsContent>
 
-          {/* Invoice Filters */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Filtry</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label>Organizace</Label>
-                  <Select
-                    value={invoiceFilters.organizationId}
-                    onValueChange={(value) => setInvoiceFilters({ ...invoiceFilters, organizationId: value })}
-                  >
-                    <SelectTrigger data-testid="select-organization-filter">
-                      <SelectValue placeholder="Všechny organizace" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Všechny organizace</SelectItem>
-                      {organizations.map((org: any) => (
-                        <SelectItem key={org.id} value={org.id}>
-                          {org.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Stav</Label>
-                  <Select
-                    value={invoiceFilters.status}
-                    onValueChange={(value) => setInvoiceFilters({ ...invoiceFilters, status: value })}
-                  >
-                    <SelectTrigger data-testid="select-status-filter">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Všechny</SelectItem>
-                      <SelectItem value="draft">Koncept</SelectItem>
-                      <SelectItem value="sent">Odesláno</SelectItem>
-                      <SelectItem value="paid">Zaplaceno</SelectItem>
-                      <SelectItem value="overdue">Po splatnosti</SelectItem>
-                      <SelectItem value="cancelled">Stornováno</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Od</Label>
-                  <Input
-                    type="date"
-                    value={invoiceFilters.from}
-                    onChange={(e) => setInvoiceFilters({ ...invoiceFilters, from: e.target.value })}
-                    data-testid="input-date-from"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Do</Label>
-                  <Input
-                    type="date"
-                    value={invoiceFilters.to}
-                    onChange={(e) => setInvoiceFilters({ ...invoiceFilters, to: e.target.value })}
-                    data-testid="input-date-to"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Invoices List */}
-          <div className="grid grid-cols-1 gap-4">
-            {invoices.map((invoice) => (
-              <Card key={invoice.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <FileText className="h-8 w-8 text-muted-foreground" />
-                      <div>
-                        <h3 className="font-semibold text-lg" data-testid={`invoice-${invoice.id}`}>
-                          Faktura #{invoice.id.slice(-8)}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          {invoice.organizationName}
-                        </p>
-                        <div className="flex items-center gap-2 mt-2">
-                          {getStatusBadge(invoice.status)}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-4">
-                      <div className="text-right">
-                        <div className="font-semibold text-lg">
-                          {invoice.amount.toLocaleString('cs-CZ')} {invoice.currency}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Splatnost: {format(new Date(invoice.dueDate), "d.M.yyyy", { locale: cs })}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Vytvořeno: {format(new Date(invoice.createdAt), "d.M.yyyy", { locale: cs })}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        <Button size="sm" variant="outline" data-testid={`button-download-${invoice.id}`}>
-                          <Download className="h-4 w-4" />
-                        </Button>
-                        {invoice.status === "draft" && (
-                          <Button size="sm" variant="outline" data-testid={`button-send-${invoice.id}`}>
-                            <Send className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-
-            {invoices.length === 0 && (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Žádné faktury</h3>
-                  <p className="text-muted-foreground">
-                    Nenalezeny žádné faktury odpovídající zadaným filtrům
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+        <TabsContent value="organization">
+          <OrganizationBillingTab />
         </TabsContent>
       </Tabs>
     </div>
-  );
-}
-
-function CreatePlanForm({ onSubmit, isLoading }: { onSubmit: (data: any) => void; isLoading: boolean }) {
-  const [formData, setFormData] = useState({
-    name: "",
-    price: "",
-    currency: "CZK",
-    interval: "month",
-    features: "",
-    maxServices: "",
-    maxBookings: ""
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit({
-      ...formData,
-      price: parseFloat(formData.price),
-      features: formData.features.split('\n').filter(f => f.trim()),
-      maxServices: formData.maxServices ? parseInt(formData.maxServices) : null,
-      maxBookings: formData.maxBookings ? parseInt(formData.maxBookings) : null
-    });
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="name">Název plánu</Label>
-        <Input
-          id="name"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          required
-          data-testid="input-plan-name"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="price">Cena</Label>
-          <Input
-            id="price"
-            type="number"
-            value={formData.price}
-            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-            required
-            data-testid="input-plan-price"
-          />
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="interval">Interval</Label>
-          <Select value={formData.interval} onValueChange={(value) => setFormData({ ...formData, interval: value })}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="month">Měsíční</SelectItem>
-              <SelectItem value="year">Roční</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="features">Funkce (jedna na řádek)</Label>
-        <Textarea
-          id="features"
-          value={formData.features}
-          onChange={(e) => setFormData({ ...formData, features: e.target.value })}
-          placeholder="Online rezervace&#10;Email notifikace&#10;Dashboard"
-          data-testid="textarea-plan-features"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="maxServices">Max služeb</Label>
-          <Input
-            id="maxServices"
-            type="number"
-            value={formData.maxServices}
-            onChange={(e) => setFormData({ ...formData, maxServices: e.target.value })}
-            placeholder="Nevyplněno = neomezeno"
-            data-testid="input-max-services"
-          />
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="maxBookings">Max rezervací</Label>
-          <Input
-            id="maxBookings"
-            type="number"
-            value={formData.maxBookings}
-            onChange={(e) => setFormData({ ...formData, maxBookings: e.target.value })}
-            placeholder="Nevyplněno = neomezeno"
-            data-testid="input-max-bookings"
-          />
-        </div>
-      </div>
-
-      <div className="flex justify-end space-x-2">
-        <Button type="submit" disabled={isLoading} data-testid="button-submit-plan">
-          {isLoading ? "Vytvářím..." : "Vytvořit plán"}
-        </Button>
-      </div>
-    </form>
-  );
-}
-
-function CreateInvoiceForm({ 
-  organizations, 
-  onSubmit, 
-  isLoading 
-}: { 
-  organizations: any[];
-  onSubmit: (data: any) => void;
-  isLoading: boolean;
-}) {
-  const [formData, setFormData] = useState({
-    organizationId: "",
-    dueDate: "",
-    items: [{ description: "", quantity: 1, unitPrice: 0 }]
-  });
-
-  const addItem = () => {
-    setFormData({
-      ...formData,
-      items: [...formData.items, { description: "", quantity: 1, unitPrice: 0 }]
-    });
-  };
-
-  const removeItem = (index: number) => {
-    setFormData({
-      ...formData,
-      items: formData.items.filter((_, i) => i !== index)
-    });
-  };
-
-  const updateItem = (index: number, field: string, value: any) => {
-    const newItems = [...formData.items];
-    newItems[index] = { ...newItems[index], [field]: value };
-    setFormData({ ...formData, items: newItems });
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="organizationId">Organizace</Label>
-        <Select
-          value={formData.organizationId}
-          onValueChange={(value) => setFormData({ ...formData, organizationId: value })}
-        >
-          <SelectTrigger data-testid="select-invoice-organization">
-            <SelectValue placeholder="Vyberte organizaci" />
-          </SelectTrigger>
-          <SelectContent>
-            {organizations.map((org: any) => (
-              <SelectItem key={org.id} value={org.id}>
-                {org.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="dueDate">Datum splatnosti</Label>
-        <Input
-          id="dueDate"
-          type="date"
-          value={formData.dueDate}
-          onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-          required
-          data-testid="input-due-date"
-        />
-      </div>
-
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <Label>Položky faktury</Label>
-          <Button type="button" size="sm" onClick={addItem} data-testid="button-add-item">
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {formData.items.map((item, index) => (
-          <div key={index} className="grid grid-cols-12 gap-2 items-end">
-            <div className="col-span-6">
-              <Input
-                placeholder="Popis položky"
-                value={item.description}
-                onChange={(e) => updateItem(index, 'description', e.target.value)}
-                data-testid={`input-item-description-${index}`}
-              />
-            </div>
-            <div className="col-span-2">
-              <Input
-                type="number"
-                placeholder="Množství"
-                value={item.quantity}
-                onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value))}
-                data-testid={`input-item-quantity-${index}`}
-              />
-            </div>
-            <div className="col-span-3">
-              <Input
-                type="number"
-                placeholder="Jednotková cena"
-                value={item.unitPrice}
-                onChange={(e) => updateItem(index, 'unitPrice', parseFloat(e.target.value))}
-                data-testid={`input-item-price-${index}`}
-              />
-            </div>
-            <div className="col-span-1">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => removeItem(index)}
-                disabled={formData.items.length === 1}
-                data-testid={`button-remove-item-${index}`}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex justify-end space-x-2">
-        <Button type="submit" disabled={isLoading} data-testid="button-submit-invoice">
-          {isLoading ? "Generuji..." : "Vygenerovat fakturu"}
-        </Button>
-      </div>
-    </form>
   );
 }

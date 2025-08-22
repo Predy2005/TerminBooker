@@ -112,6 +112,27 @@ export const superAdminApi = {
     return apiRequest("POST", "/super-admin/billing/invoices", data);
   },
 
+  // Booking payments
+  getBookingPayments: async (filters: any) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value && value !== "all") {
+        params.append(key, String(value));
+      }
+    });
+    
+    const response = await fetch(`/api/super-admin/booking-payments?${params}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  },
+
+  // Organization billing details
+  getOrganizationBilling: async (organizationId: string) => {
+    const response = await fetch(`/api/super-admin/organizations/${organizationId}/billing`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  },
+
   // Audit
   getAuditLogs: async (filters: any) => {
     const params = new URLSearchParams();
