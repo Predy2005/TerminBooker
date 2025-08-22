@@ -216,7 +216,7 @@ export default function SuperAdminAudit() {
                   <SelectValue placeholder="Všichni uživatelé" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Všichni uživatelé</SelectItem>
+                  <SelectItem value="all">Všichni uživatelé</SelectItem>
                   {users.slice(0, 50).map((user: any) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.email}
@@ -236,7 +236,7 @@ export default function SuperAdminAudit() {
                   <SelectValue placeholder="Všechny organizace" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Všechny organizace</SelectItem>
+                  <SelectItem value="all">Všechny organizace</SelectItem>
                   {organizations.map((org: any) => (
                     <SelectItem key={org.id} value={org.id}>
                       {org.name}
@@ -256,7 +256,7 @@ export default function SuperAdminAudit() {
                   <SelectValue placeholder="Všechny akce" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Všechny akce</SelectItem>
+                  <SelectItem value="all">Všechny akce</SelectItem>
                   <SelectItem value="login">Přihlášení</SelectItem>
                   <SelectItem value="logout">Odhlášení</SelectItem>
                   <SelectItem value="create">Vytvoření</SelectItem>

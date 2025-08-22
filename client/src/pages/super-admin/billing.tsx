@@ -223,7 +223,7 @@ export default function SuperAdminBilling() {
                       <SelectValue placeholder="Všechny organizace" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Všechny organizace</SelectItem>
+                      <SelectItem value="all">Všechny organizace</SelectItem>
                       {organizations.map((org: any) => (
                         <SelectItem key={org.id} value={org.id}>
                           {org.name}

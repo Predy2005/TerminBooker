@@ -88,41 +88,31 @@ function Router() {
       <Route path="/booking/cancel" component={BookingCancel} />
       
       {/* Super Admin routes */}
-      <Route path="/super-admin">
-        {() => (
-          <SuperAdminLayout>
-            <SuperAdminDashboard />
-          </SuperAdminLayout>
-        )}
-      </Route>
-      <Route path="/super-admin/organizations">
-        {() => (
-          <SuperAdminLayout>
-            <SuperAdminOrganizations />
-          </SuperAdminLayout>
-        )}
-      </Route>
-      <Route path="/super-admin/users">
-        {() => (
-          <SuperAdminLayout>
-            <SuperAdminUsers />
-          </SuperAdminLayout>
-        )}
-      </Route>
-      <Route path="/super-admin/billing">
-        {() => (
-          <SuperAdminLayout>
-            <SuperAdminBilling />
-          </SuperAdminLayout>
-        )}
-      </Route>
-      <Route path="/super-admin/audit">
-        {() => (
-          <SuperAdminLayout>
-            <SuperAdminAudit />
-          </SuperAdminLayout>
-        )}
-      </Route>
+      <Route path="/super-admin" component={() => (
+        <SuperAdminLayout>
+          <SuperAdminDashboard />
+        </SuperAdminLayout>
+      )} />
+      <Route path="/super-admin/organizations" component={() => (
+        <SuperAdminLayout>
+          <SuperAdminOrganizations />
+        </SuperAdminLayout>
+      )} />
+      <Route path="/super-admin/users" component={() => (
+        <SuperAdminLayout>
+          <SuperAdminUsers />
+        </SuperAdminLayout>
+      )} />
+      <Route path="/super-admin/billing" component={() => (
+        <SuperAdminLayout>
+          <SuperAdminBilling />
+        </SuperAdminLayout>
+      )} />
+      <Route path="/super-admin/audit" component={() => (
+        <SuperAdminLayout>
+          <SuperAdminAudit />
+        </SuperAdminLayout>
+      )} />
       
       {/* Fallback to 404 */}
       <Route component={NotFound} />

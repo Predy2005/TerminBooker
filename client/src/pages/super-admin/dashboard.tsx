@@ -1,10 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { superAdminApi } from "@/lib/super-admin-api";
-import { Building2, Users, Calendar, CreditCard, TrendingUp, AlertTriangle } from "lucide-react";
-import { format, subMonths } from "date-fns";
-import { cs } from "date-fns/locale";
+import { 
+  Building2, 
+  Users, 
+  Calendar, 
+  DollarSign,
+  TrendingUp,
+  Activity
+} from "lucide-react";
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 
 export default function SuperAdminDashboard() {
   const { data: analytics, isLoading } = useQuery({
@@ -22,8 +28,8 @@ export default function SuperAdminDashboard() {
 
   if (!analytics) {
     return (
-      <div className="text-center text-muted-foreground">
-        Nepodařilo se načíst analytická data
+      <div className="flex items-center justify-center h-96">
+        <p className="text-muted-foreground">Nepodařilo se načíst data</p>
       </div>
     );
   }
@@ -32,7 +38,7 @@ export default function SuperAdminDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground" data-testid="text-superadmin-title">
+        <h1 className="text-3xl font-bold text-foreground" data-testid="text-dashboard-title">
           Super Admin Dashboard
         </h1>
         <p className="text-muted-foreground mt-2">
@@ -40,7 +46,7 @@ export default function SuperAdminDashboard() {
         </p>
       </div>
 
-      {/* Overview Stats */}
+      {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -48,11 +54,11 @@ export default function SuperAdminDashboard() {
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="stat-total-organizations">
+            <div className="text-2xl font-bold" data-testid="metric-total-organizations">
               {analytics.totalOrganizations}
             </div>
             <p className="text-xs text-muted-foreground">
-              {analytics.activeOrganizations} aktivních
+              <span className="text-green-600">{analytics.activeOrganizations}</span> aktivních
             </p>
           </CardContent>
         </Card>
@@ -63,11 +69,11 @@ export default function SuperAdminDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="stat-total-users">
+            <div className="text-2xl font-bold" data-testid="metric-total-users">
               {analytics.totalUsers}
             </div>
             <p className="text-xs text-muted-foreground">
-              Registrovaných účtů
+              Registrovaní uživatelé
             </p>
           </CardContent>
         </Card>
@@ -78,11 +84,11 @@ export default function SuperAdminDashboard() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="stat-total-bookings">
+            <div className="text-2xl font-bold" data-testid="metric-total-bookings">
               {analytics.totalBookings.toLocaleString('cs-CZ')}
             </div>
             <p className="text-xs text-muted-foreground">
-              Za celou dobu provozu
+              Všechny rezervace
             </p>
           </CardContent>
         </Card>
@@ -90,112 +96,110 @@ export default function SuperAdminDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Celkové tržby</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="stat-total-revenue">
+            <div className="text-2xl font-bold" data-testid="metric-total-revenue">
               {analytics.totalRevenue.toLocaleString('cs-CZ')} Kč
             </div>
             <p className="text-xs text-muted-foreground">
-              Zpracované platby
+              Za celou dobu
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Monthly Trends */}
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Měsíční růst organizací
+            </CardTitle>
+            <CardDescription>
+              Počet aktivních organizací za posledních 6 měsíců
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={analytics.monthlyStats}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="organizations" fill="#3b82f6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Měsíční rezervace
+            </CardTitle>
+            <CardDescription>
+              Počet rezervací za posledních 6 měsíců
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={analytics.monthlyStats}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="bookings" fill="#10b981" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Actions */}
       <Card>
         <CardHeader>
-          <CardTitle>Měsíční trendy</CardTitle>
+          <CardTitle>Rychlé akce</CardTitle>
           <CardDescription>
-            Vývoj klíčových metrik za posledních 6 měsíců
+            Nejčastěji používané funkce super admin panelu
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {analytics.monthlyStats.slice(-6).map((stat, index) => (
-              <div key={stat.month} className="space-y-2">
-                <h4 className="font-medium">
-                  {format(new Date(stat.month), "MMMM yyyy", { locale: cs })}
-                </h4>
-                <div className="space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Podniky:</span>
-                    <span>{stat.organizations}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Rezervace:</span>
-                    <span>{stat.bookings.toLocaleString('cs-CZ')}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Tržby:</span>
-                    <span>{stat.revenue.toLocaleString('cs-CZ')} Kč</span>
-                  </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer">
+              <div className="flex items-center space-x-3">
+                <Building2 className="h-8 w-8 text-blue-500" />
+                <div>
+                  <h3 className="font-medium">Správa organizací</h3>
+                  <p className="text-sm text-muted-foreground">Aktivace, deaktivace, editace</p>
                 </div>
               </div>
-            ))}
+            </Card>
+
+            <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer">
+              <div className="flex items-center space-x-3">
+                <Users className="h-8 w-8 text-green-500" />
+                <div>
+                  <h3 className="font-medium">Správa uživatelů</h3>
+                  <p className="text-sm text-muted-foreground">Impersonace, editace</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer">
+              <div className="flex items-center space-x-3">
+                <CreditCard className="h-8 w-8 text-purple-500" />
+                <div>
+                  <h3 className="font-medium">Billing management</h3>
+                  <p className="text-sm text-muted-foreground">Plány, faktury</p>
+                </div>
+              </div>
+            </Card>
           </div>
         </CardContent>
       </Card>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="cursor-pointer hover:bg-muted/50 transition-colors">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              Správa podniků
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-sm text-muted-foreground">
-              Spravovat organizace, jejich stav a nastavení
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:bg-muted/50 transition-colors">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Správa uživatelů
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-sm text-muted-foreground">
-              Spravovat uživatelské účty a oprávnění
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:bg-muted/50 transition-colors">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              Billing & faktury
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-sm text-muted-foreground">
-              Spravovat předplatné a generovat faktury
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:bg-muted/50 transition-colors">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />
-              Audit & bezpečnost
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-sm text-muted-foreground">
-              Audit log, bezpečnostní události
-            </p>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }
