@@ -610,15 +610,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Rate-limited booking endpoint
-  server.register(async function (fastify) {
-    await fastify.register(fastifyRateLimit, {
-      max: 5,
-      timeWindow: "1 minute"
-    });
-
-    fastify.post("/public/:orgSlug/bookings", async (request, reply) => {
-      try {
         const { orgSlug } = request.params as { orgSlug: string };
         const data = publicBookingSchema.parse(request.body);
         
