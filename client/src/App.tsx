@@ -20,6 +20,7 @@ import Bookings from "@/pages/bookings";
 import Settings from "@/pages/settings";
 import EmbedBooking from "@/pages/embed";
 import EmbedGenerator from "@/pages/embed-generator";
+import FormEditor from "@/pages/form-editor";
 import Pricing from "@/pages/pricing";
 import BillingSuccess from "@/pages/billing-success";
 import BillingPage from "@/pages/billing";
@@ -102,6 +103,7 @@ function Router() {
       <Route path="/app/blackouts" component={Blackouts} />
       <Route path="/app/bookings" component={Bookings} />
       <Route path="/app/settings" component={Settings} />
+      <Route path="/app/form-editor" component={FormEditor} />
       <Route path="/app/embed" component={EmbedGenerator} />
       <Route path="/app/billing" component={BillingPage} />
       <Route path="/app/billing-symfony" component={BillingSymfonyPage} />

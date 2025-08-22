@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Building2, Upload, Palette, Shield, CreditCard, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Save, Building2, Upload, Palette, Shield, CreditCard, CheckCircle, XCircle, Loader2, Cog, Edit } from "lucide-react";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import { apiRequest } from "@/lib/queryClient";
 import { organizationApi } from "@/lib/api";
@@ -621,6 +621,68 @@ export default function Settings() {
                     </div>
                   </div>
                 </Form>
+              </CardContent>
+            </Card>
+
+            {/* Form Editor Section - PRO only */}
+            <Card className="mt-6 border-blue-200 bg-blue-50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-blue-800">
+                  <Edit className="h-5 w-5" />
+                  Editor rezervačního formuláře
+                  <span className="ml-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs px-2 py-1 rounded-full">
+                    PRO
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {organization?.plan === 'PRO' ? (
+                  <div className="space-y-4">
+                    <p className="text-sm text-blue-700">
+                      Přizpůsobte si layout a pole vašeho rezervačního formuláře podle vašich potřeb.
+                    </p>
+                    
+                    <div className="flex items-center justify-between bg-blue-100 p-4 rounded-lg border border-blue-200">
+                      <div>
+                        <p className="font-medium text-blue-800">Drag & Drop Editor</p>
+                        <p className="text-sm text-blue-700">
+                          Přesouvejte kroky, upravujte pole a vytvářejte vlastní presety formuláře
+                        </p>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                        onClick={() => window.location.href = "/app/form-editor"}
+                      >
+                        <Cog className="w-4 h-4 mr-2" />
+                        Upravit formulář
+                      </Button>
+                    </div>
+                    
+                    <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded border border-blue-200">
+                      <strong>Možnosti úprav:</strong>
+                      <ul className="list-disc list-inside mt-2 space-y-1">
+                        <li>Přesouvání kroků (služba → datum → čas → kontakty)</li>
+                        <li>Přidávání a úprava polí formuláře</li>
+                        <li>Nastavení povinných polí a validace</li>
+                        <li>Uložení vlastních presetů</li>
+                      </ul>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Edit className="mx-auto h-12 w-12 text-blue-300 mb-4" />
+                    <h3 className="text-lg font-medium text-blue-800 mb-2">
+                      Editor rezervačního formuláře
+                    </h3>
+                    <p className="text-blue-600 mb-4">
+                      Přizpůsobte si layout formuláře pomocí drag & drop editoru. Dostupné pouze v PRO plánu.
+                    </p>
+                    <Button variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-100">
+                      Upgradovat na PRO
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

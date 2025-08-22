@@ -1226,6 +1226,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Form layout customization endpoints
+  server.put("/organization/form-layout", async (request, reply) => {
+    try {
+      const user = await requireAuth(request, reply);
+      const layoutData = request.body;
+      
+      // Check if user has PRO plan for form customization
+      const organization = await storage.getOrganization(user.organizationId);
+      if (!organization) {
+        return reply.status(404).send({ message: "Organizace nebyla nalezena" });
+      }
+      
+      if (organization.plan !== "PRO") {
+        return reply.status(403).send({ 
+          message: "Úprava formuláře je dostupná pouze v PRO plánu" 
+        });
+      }
+      
+      // Update organization with custom form layout
+      await storage.updateOrganization(user.organizationId, { 
+        bookingFormLayout: layoutData,
+        activeLayoutPreset: layoutData.preset || "default"
+      });
+      
+      return { success: true, message: "Layout formuláře byl uložen" };
+    } catch (error: any) {
+      console.error("Error saving form layout:", error);
+      return reply.status(500).send({ message: "Internal server error" });
+    }
+  });
+
+  server.get("/organization/form-layout", async (request, reply) => {
+    try {
+      const user = await requireAuth(request, reply);
+      const organization = await storage.getOrganization(user.organizationId);
+      
+      if (!organization) {
+        return reply.status(404).send({ message: "Organizace nebyla nalezena" });
+      }
+      
+      return {
+        bookingFormLayout: organization.bookingFormLayout,
+        activeLayoutPreset: organization.activeLayoutPreset,
+        canCustomize: organization.plan === "PRO"
+      };
+    } catch (error: any) {
+      console.error("Error getting form layout:", error);
+      return reply.status(500).send({ message: "Internal server error" });
+    }
+  });
+
 
 
   // Register Super Admin routes

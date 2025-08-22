@@ -32,6 +32,9 @@ export const organizations = pgTable("organizations", {
   primaryColor: text("primary_color").default("#0f172a"), // slate-900
   secondaryColor: text("secondary_color").default("#64748b"), // slate-500
   accentColor: text("accent_color").default("#3b82f6"), // blue-500
+  // Form layout customization (for PRO users)
+  bookingFormLayout: jsonb("booking_form_layout"), // Custom layout configuration
+  activeLayoutPreset: text("active_layout_preset").default("default"), // Active preset name
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`)
 });
