@@ -8,7 +8,8 @@ import {
   Calendar, 
   DollarSign,
   TrendingUp,
-  Activity
+  Activity,
+  CreditCard
 } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 

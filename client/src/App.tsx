@@ -51,6 +51,33 @@ function Router() {
       {/* Super Admin Test */}
       <Route path="/super-admin-test" component={SuperAdminTest} />
       
+      {/* Super Admin routes - MUST BE BEFORE /:orgSlug */}
+      <Route path="/super-admin" component={() => (
+        <SuperAdminLayout>
+          <SuperAdminDashboard />
+        </SuperAdminLayout>
+      )} />
+      <Route path="/super-admin/organizations" component={() => (
+        <SuperAdminLayout>
+          <SuperAdminOrganizations />
+        </SuperAdminLayout>
+      )} />
+      <Route path="/super-admin/users" component={() => (
+        <SuperAdminLayout>
+          <SuperAdminUsers />
+        </SuperAdminLayout>
+      )} />
+      <Route path="/super-admin/billing" component={() => (
+        <SuperAdminLayout>
+          <SuperAdminBilling />
+        </SuperAdminLayout>
+      )} />
+      <Route path="/super-admin/audit" component={() => (
+        <SuperAdminLayout>
+          <SuperAdminAudit />
+        </SuperAdminLayout>
+      )} />
+      
       {/* Static pages */}
       <Route path="/docs" component={DocsPage} />
       <Route path="/support" component={SupportPage} />
@@ -58,7 +85,7 @@ function Router() {
       {/* Embed booking widget */}
       <Route path="/embed" component={EmbedBooking} />
       
-      {/* Public booking routes */}
+      {/* Public booking routes - MUST BE AFTER super-admin routes */}
       <Route path="/:orgSlug" component={PublicBooking} />
       
       {/* Auth routes */}
@@ -86,33 +113,6 @@ function Router() {
       {/* Booking payment routes */}
       <Route path="/booking/success" component={BookingSuccess} />
       <Route path="/booking/cancel" component={BookingCancel} />
-      
-      {/* Super Admin routes */}
-      <Route path="/super-admin" component={() => (
-        <SuperAdminLayout>
-          <SuperAdminDashboard />
-        </SuperAdminLayout>
-      )} />
-      <Route path="/super-admin/organizations" component={() => (
-        <SuperAdminLayout>
-          <SuperAdminOrganizations />
-        </SuperAdminLayout>
-      )} />
-      <Route path="/super-admin/users" component={() => (
-        <SuperAdminLayout>
-          <SuperAdminUsers />
-        </SuperAdminLayout>
-      )} />
-      <Route path="/super-admin/billing" component={() => (
-        <SuperAdminLayout>
-          <SuperAdminBilling />
-        </SuperAdminLayout>
-      )} />
-      <Route path="/super-admin/audit" component={() => (
-        <SuperAdminLayout>
-          <SuperAdminAudit />
-        </SuperAdminLayout>
-      )} />
       
       {/* Fallback to 404 */}
       <Route component={NotFound} />
