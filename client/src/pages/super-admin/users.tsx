@@ -16,7 +16,7 @@ import { cs } from "date-fns/locale";
 
 export default function SuperAdminUsers() {
   const [filters, setFilters] = useState({
-    organizationId: "",
+    organizationId: "all",
     search: "",
     status: "all"
   });
@@ -143,7 +143,7 @@ export default function SuperAdminUsers() {
                   <SelectValue placeholder="Všechny organizace" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Všechny organizace</SelectItem>
+                  <SelectItem value="all">Všechny organizace</SelectItem>
                   {organizations.map((org: any) => (
                     <SelectItem key={org.id} value={org.id}>
                       {org.name}

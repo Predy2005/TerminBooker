@@ -313,7 +313,7 @@ export async function registerSuperAdminRoutes(fastify: FastifyInstance) {
     
     let filtered = [...demoUsers];
     
-    if (organizationId) {
+    if (organizationId && organizationId !== "all") {
       filtered = filtered.filter(user => user.organizationId === organizationId);
     }
     
