@@ -30,6 +30,15 @@ import BookingSuccess from "@/pages/booking-success";
 import BookingCancel from "@/pages/booking-cancel";
 import DemoLogin from "@/pages/demo-login";
 
+// Super Admin imports
+import SuperAdminLayout from "@/pages/super-admin/layout";
+import SuperAdminDashboard from "@/pages/super-admin/dashboard";
+import SuperAdminOrganizations from "@/pages/super-admin/organizations";
+import SuperAdminUsers from "@/pages/super-admin/users";
+import SuperAdminBilling from "@/pages/super-admin/billing";
+import SuperAdminAudit from "@/pages/super-admin/audit";
+import SuperAdminTest from "@/pages/super-admin-test";
+
 function Router() {
   return (
     <Switch>
@@ -38,6 +47,9 @@ function Router() {
       
       {/* Demo login */}
       <Route path="/demo" component={DemoLogin} />
+      
+      {/* Super Admin Test */}
+      <Route path="/super-admin-test" component={SuperAdminTest} />
       
       {/* Static pages */}
       <Route path="/docs" component={DocsPage} />
@@ -74,6 +86,43 @@ function Router() {
       {/* Booking payment routes */}
       <Route path="/booking/success" component={BookingSuccess} />
       <Route path="/booking/cancel" component={BookingCancel} />
+      
+      {/* Super Admin routes */}
+      <Route path="/super-admin">
+        {() => (
+          <SuperAdminLayout>
+            <SuperAdminDashboard />
+          </SuperAdminLayout>
+        )}
+      </Route>
+      <Route path="/super-admin/organizations">
+        {() => (
+          <SuperAdminLayout>
+            <SuperAdminOrganizations />
+          </SuperAdminLayout>
+        )}
+      </Route>
+      <Route path="/super-admin/users">
+        {() => (
+          <SuperAdminLayout>
+            <SuperAdminUsers />
+          </SuperAdminLayout>
+        )}
+      </Route>
+      <Route path="/super-admin/billing">
+        {() => (
+          <SuperAdminLayout>
+            <SuperAdminBilling />
+          </SuperAdminLayout>
+        )}
+      </Route>
+      <Route path="/super-admin/audit">
+        {() => (
+          <SuperAdminLayout>
+            <SuperAdminAudit />
+          </SuperAdminLayout>
+        )}
+      </Route>
       
       {/* Fallback to 404 */}
       <Route component={NotFound} />

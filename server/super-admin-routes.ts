@@ -1,0 +1,556 @@
+import type { FastifyInstance } from "fastify";
+import { z } from "zod";
+import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
+
+// Demo Super Admin Data
+const demoAnalytics = {
+  totalOrganizations: 47,
+  activeOrganizations: 42,
+  totalUsers: 89,
+  totalBookings: 2847,
+  totalRevenue: 1245670,
+  monthlyStats: Array.from({ length: 6 }, (_, i) => {
+    const date = subMonths(new Date(), 5 - i);
+    return {
+      month: format(startOfMonth(date), 'yyyy-MM'),
+      organizations: 40 + i * 2,
+      bookings: 380 + i * 45,
+      revenue: 180000 + i * 32000
+    };
+  })
+};
+
+const demoOrganizations = [
+  {
+    id: "org-1",
+    name: "Salon Krása",
+    slug: "salon-krasa",
+    email: "info@salonkrasa.cz",
+    phone: "+420 777 123 456",
+    address: "Václavské náměstí 1, Praha 1",
+    website: "https://salonkrasa.cz",
+    status: "active",
+    plan: "pro",
+    createdAt: "2024-01-15T10:00:00Z",
+    totalBookings: 847,
+    totalRevenue: 425600,
+    businessVerified: true,
+    ico: "12345678",
+    stripeAccountId: "acct_demo123"
+  },
+  {
+    id: "org-2", 
+    name: "Fitness Studio Active",
+    slug: "fitness-active",
+    email: "rezervace@fitnessactive.cz",
+    phone: "+420 666 789 123",
+    address: "Karlova 25, Brno",
+    website: "https://fitnessactive.cz",
+    status: "active",
+    plan: "basic",
+    createdAt: "2024-02-20T14:30:00Z",
+    totalBookings: 1245,
+    totalRevenue: 312500,
+    businessVerified: true,
+    ico: "87654321",
+    stripeAccountId: "acct_demo456"
+  },
+  {
+    id: "org-3",
+    name: "Veterinární klinika Zdraví",
+    slug: "vet-zdravi",
+    email: "info@vetzdravi.cz",
+    phone: "+420 555 444 333",
+    address: "Masarykova 15, Ostrava",
+    website: "https://vetzdravi.cz",
+    status: "trial",
+    plan: "free",
+    createdAt: "2024-08-10T09:15:00Z",
+    totalBookings: 89,
+    totalRevenue: 0,
+    businessVerified: false,
+    ico: "11223344",
+    stripeAccountId: null
+  }
+];
+
+const demoUsers = [
+  {
+    id: "user-1",
+    email: "admin@salonkrasa.cz",
+    username: "Jana Nováková",
+    organizationId: "org-1",
+    organizationName: "Salon Krása",
+    role: "admin",
+    status: "active",
+    createdAt: "2024-01-15T10:00:00Z",
+    lastLoginAt: "2025-08-22T08:30:00Z"
+  },
+  {
+    id: "user-2",
+    email: "trenka@fitnessactive.cz", 
+    username: "Petr Svoboda",
+    organizationId: "org-2",
+    organizationName: "Fitness Studio Active",
+    role: "admin",
+    status: "active", 
+    createdAt: "2024-02-20T14:30:00Z",
+    lastLoginAt: "2025-08-21T19:45:00Z"
+  },
+  {
+    id: "user-3",
+    email: "vet@zdravi.cz",
+    username: "Dr. Marie Svobodová",
+    organizationId: "org-3", 
+    organizationName: "Veterinární klinika Zdraví",
+    role: "admin",
+    status: "pending",
+    createdAt: "2024-08-10T09:15:00Z",
+    lastLoginAt: null
+  }
+];
+
+const demoBillingPlans = [
+  {
+    id: "plan-free",
+    name: "Zdarma",
+    price: 0,
+    currency: "CZK",
+    interval: "month",
+    features: ["До 50 rezervací/měsíc", "1 služba", "Základní podpora"],
+    maxServices: 1,
+    maxBookings: 50,
+    stripePriceId: null
+  },
+  {
+    id: "plan-basic", 
+    name: "Základní",
+    price: 299,
+    currency: "CZK",
+    interval: "month",
+    features: ["До 200 rezervací/měsíc", "5 služeb", "Email podpora", "Kalendář"],
+    maxServices: 5,
+    maxBookings: 200,
+    stripePriceId: "price_basic123"
+  },
+  {
+    id: "plan-pro",
+    name: "Pro", 
+    price: 599,
+    currency: "CZK",
+    interval: "month",
+    features: ["Neomezené rezervace", "Neomezené služby", "Prioritní podpora", "Platby", "Statistiky"],
+    maxServices: null,
+    maxBookings: null,
+    stripePriceId: "price_pro456"
+  }
+];
+
+const demoInvoices = [
+  {
+    id: "inv-1",
+    organizationId: "org-1",
+    organizationName: "Salon Krása",
+    amount: 599,
+    currency: "CZK",
+    status: "paid",
+    dueDate: "2025-09-01T00:00:00Z",
+    createdAt: "2025-08-01T10:00:00Z",
+    items: [
+      { description: "Pro plán - srpen 2025", quantity: 1, unitPrice: 599, total: 599 }
+    ]
+  },
+  {
+    id: "inv-2",
+    organizationId: "org-2",
+    organizationName: "Fitness Studio Active", 
+    amount: 299,
+    currency: "CZK",
+    status: "sent",
+    dueDate: "2025-09-05T00:00:00Z",
+    createdAt: "2025-08-05T12:00:00Z",
+    items: [
+      { description: "Základní plán - srpen 2025", quantity: 1, unitPrice: 299, total: 299 }
+    ]
+  }
+];
+
+const demoAuditLogs = [
+  {
+    id: "audit-1",
+    userId: "user-1",
+    userEmail: "admin@salonkrasa.cz", 
+    organizationId: "org-1",
+    organizationName: "Salon Krása",
+    action: "login",
+    resource: "auth",
+    resourceId: null,
+    details: { userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+    ipAddress: "192.168.1.100",
+    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    timestamp: "2025-08-22T08:30:00Z"
+  },
+  {
+    id: "audit-2",
+    userId: "user-2",
+    userEmail: "trenka@fitnessactive.cz",
+    organizationId: "org-2", 
+    organizationName: "Fitness Studio Active",
+    action: "create",
+    resource: "booking",
+    resourceId: "booking-xyz",
+    details: { customerEmail: "zakaznik@email.cz", serviceName: "Osobní trénink" },
+    ipAddress: "10.0.0.45",
+    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    timestamp: "2025-08-21T19:45:00Z"
+  },
+  {
+    id: "audit-3",
+    userId: "super-admin",
+    userEmail: "admin@bookli.cz",
+    organizationId: null,
+    organizationName: null,
+    action: "impersonate",
+    resource: "user",
+    resourceId: "user-1",
+    details: { reason: "Podpora zákazníka - řešení problému s platbami", targetEmail: "admin@salonkrasa.cz" },
+    ipAddress: "203.0.113.10",
+    userAgent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
+    timestamp: "2025-08-20T14:20:00Z"
+  }
+];
+
+export async function registerSuperAdminRoutes(fastify: FastifyInstance) {
+  // Analytics endpoint
+  fastify.get("/super-admin/analytics", async (request, reply) => {
+    return demoAnalytics;
+  });
+
+  // Organizations management
+  fastify.get("/super-admin/organizations", async (request, reply) => {
+    const { status, plan, search, sortBy, sortOrder } = request.query as any;
+    
+    let filtered = [...demoOrganizations];
+    
+    if (status && status !== "all") {
+      filtered = filtered.filter(org => org.status === status);
+    }
+    
+    if (plan && plan !== "all") {
+      filtered = filtered.filter(org => org.plan === plan);
+    }
+    
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filtered = filtered.filter(org => 
+        org.name.toLowerCase().includes(searchLower) ||
+        org.email.toLowerCase().includes(searchLower) ||
+        org.slug.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Sort results
+    if (sortBy) {
+      filtered.sort((a, b) => {
+        let aVal, bVal;
+        switch (sortBy) {
+          case "name":
+            aVal = a.name;
+            bVal = b.name;
+            break;
+          case "created":
+            aVal = a.createdAt;
+            bVal = b.createdAt;
+            break;
+          case "revenue":
+            aVal = a.totalRevenue;
+            bVal = b.totalRevenue;
+            break;
+          case "bookings":
+            aVal = a.totalBookings;
+            bVal = b.totalBookings;
+            break;
+          default:
+            return 0;
+        }
+        
+        if (sortOrder === "desc") {
+          return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+        }
+        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+      });
+    }
+    
+    return filtered;
+  });
+
+  fastify.patch("/super-admin/organizations/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const updateData = request.body;
+    
+    // In real implementation, this would update the database
+    return { success: true, message: "Organizace byla aktualizována" };
+  });
+
+  fastify.post("/super-admin/organizations/:id/deactivate", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { reason } = request.body as { reason: string };
+    
+    // In real implementation, this would update the database and log the action
+    return { success: true, message: "Organizace byla deaktivována" };
+  });
+
+  fastify.post("/super-admin/organizations/:id/activate", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    
+    // In real implementation, this would update the database
+    return { success: true, message: "Organizace byla aktivována" };
+  });
+
+  // Users management
+  fastify.get("/super-admin/users", async (request, reply) => {
+    const { organizationId, search, status } = request.query as any;
+    
+    let filtered = [...demoUsers];
+    
+    if (organizationId) {
+      filtered = filtered.filter(user => user.organizationId === organizationId);
+    }
+    
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filtered = filtered.filter(user => 
+        user.email.toLowerCase().includes(searchLower) ||
+        (user.username && user.username.toLowerCase().includes(searchLower)) ||
+        user.organizationName.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    if (status && status !== "all") {
+      filtered = filtered.filter(user => user.status === status);
+    }
+    
+    return filtered;
+  });
+
+  fastify.patch("/super-admin/users/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const updateData = request.body;
+    
+    return { success: true, message: "Uživatel byl aktualizován" };
+  });
+
+  fastify.post("/super-admin/impersonate", async (request, reply) => {
+    const { targetUserId, reason } = request.body as { targetUserId: string; reason: string };
+    
+    // In real implementation, this would:
+    // 1. Validate super admin permissions
+    // 2. Create impersonation session
+    // 3. Log the action
+    // 4. Return auth token for target user
+    
+    return {
+      success: true,
+      message: "Impersonace byla spuštěna",
+      redirectUrl: "/app"
+    };
+  });
+
+  // Services management
+  fastify.get("/super-admin/services", async (request, reply) => {
+    const { organizationId } = request.query as any;
+    
+    // Demo services data - would come from database
+    const demoServices = [
+      {
+        id: "service-1",
+        organizationId: "org-1",
+        organizationName: "Salon Krása",
+        name: "Střih a foukaná",
+        description: "Profesionální střih s následnou foukanou",
+        duration: 60,
+        price: 800,
+        paymentMode: "REQUIRED"
+      },
+      {
+        id: "service-2", 
+        organizationId: "org-2",
+        organizationName: "Fitness Studio Active",
+        name: "Osobní trénink",
+        description: "Individuální fitness trénink",
+        duration: 90,
+        price: 600,
+        paymentMode: "OPTIONAL"
+      }
+    ];
+    
+    let filtered = demoServices;
+    if (organizationId) {
+      filtered = filtered.filter(service => service.organizationId === organizationId);
+    }
+    
+    return filtered;
+  });
+
+  // Bookings management
+  fastify.get("/super-admin/bookings", async (request, reply) => {
+    const { organizationId, from, to, status, serviceId } = request.query as any;
+    
+    // Demo bookings data
+    const demoBookings = [
+      {
+        id: "booking-1",
+        organizationId: "org-1",
+        organizationName: "Salon Krása",
+        serviceId: "service-1",
+        serviceName: "Střih a foukaná",
+        customerName: "Anna Nováková",
+        customerEmail: "anna.novakova@email.cz",
+        customerPhone: "+420 777 888 999",
+        startsAt: "2025-08-22T10:00:00Z",
+        endsAt: "2025-08-22T11:00:00Z",
+        status: "CONFIRMED",
+        paymentStatus: "PAID",
+        paymentAmount: 800,
+        notes: "Zkrátit asi o 5cm"
+      },
+      {
+        id: "booking-2",
+        organizationId: "org-2", 
+        organizationName: "Fitness Studio Active",
+        serviceId: "service-2",
+        serviceName: "Osobní trénink",
+        customerName: "Pavel Dvořák",
+        customerEmail: "pavel.dvorak@email.cz",
+        customerPhone: "+420 666 555 444",
+        startsAt: "2025-08-22T16:00:00Z",
+        endsAt: "2025-08-22T17:30:00Z",
+        status: "CONFIRMED",
+        paymentStatus: "PENDING",
+        paymentAmount: 600,
+        notes: "Zaměření na kardio"
+      }
+    ];
+    
+    let filtered = demoBookings;
+    
+    if (organizationId) {
+      filtered = filtered.filter(booking => booking.organizationId === organizationId);
+    }
+    
+    if (status) {
+      filtered = filtered.filter(booking => booking.status === status);
+    }
+    
+    if (serviceId) {
+      filtered = filtered.filter(booking => booking.serviceId === serviceId);
+    }
+    
+    return filtered;
+  });
+
+  // Billing plans
+  fastify.get("/super-admin/billing/plans", async (request, reply) => {
+    return demoBillingPlans;
+  });
+
+  fastify.post("/super-admin/billing/plans", async (request, reply) => {
+    const planData = request.body;
+    
+    return {
+      success: true,
+      message: "Plán byl vytvořen",
+      id: `plan-${Date.now()}`
+    };
+  });
+
+  // Invoices
+  fastify.get("/super-admin/billing/invoices", async (request, reply) => {
+    const { organizationId, status, from, to } = request.query as any;
+    
+    let filtered = [...demoInvoices];
+    
+    if (organizationId) {
+      filtered = filtered.filter(invoice => invoice.organizationId === organizationId);
+    }
+    
+    if (status && status !== "all") {
+      filtered = filtered.filter(invoice => invoice.status === status);
+    }
+    
+    return filtered;
+  });
+
+  fastify.post("/super-admin/billing/invoices", async (request, reply) => {
+    const invoiceData = request.body;
+    
+    return {
+      success: true,
+      message: "Faktura byla vygenerována",
+      id: `inv-${Date.now()}`
+    };
+  });
+
+  // Audit logs
+  fastify.get("/super-admin/audit", async (request, reply) => {
+    const { userId, organizationId, action, from, to, limit = 100 } = request.query as any;
+    
+    let filtered = [...demoAuditLogs];
+    
+    if (userId) {
+      filtered = filtered.filter(log => log.userId === userId);
+    }
+    
+    if (organizationId) {
+      filtered = filtered.filter(log => log.organizationId === organizationId);
+    }
+    
+    if (action) {
+      filtered = filtered.filter(log => log.action === action);
+    }
+    
+    // Sort by timestamp descending
+    filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    
+    return filtered.slice(0, parseInt(limit));
+  });
+
+  // Export endpoints
+  fastify.get("/super-admin/organizations/export", async (request, reply) => {
+    const csvHeaders = ["Název", "Email", "Slug", "Stav", "Plán", "Datum vytvoření", "Celkem rezervací", "Celkové tržby"];
+    const csvRows = demoOrganizations.map(org => [
+      org.name,
+      org.email,
+      org.slug,
+      org.status,
+      org.plan,
+      format(new Date(org.createdAt), "d.M.yyyy"),
+      org.totalBookings.toString(),
+      `${org.totalRevenue} Kč`
+    ]);
+    
+    const csvContent = [csvHeaders, ...csvRows]
+      .map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    
+    reply.header('Content-Type', 'text/csv; charset=utf-8');
+    reply.header('Content-Disposition', 'attachment; filename="organizace-export.csv"');
+    return csvContent;
+  });
+
+  fastify.get("/super-admin/bookings/export", async (request, reply) => {
+    const csvHeaders = ["Datum", "Čas", "Organizace", "Služba", "Zákazník", "Email", "Stav", "Platba"];
+    const csvRows = [
+      ["22.8.2025", "10:00", "Salon Krása", "Střih a foukaná", "Anna Nováková", "anna.novakova@email.cz", "Potvrzeno", "800 Kč"],
+      ["22.8.2025", "16:00", "Fitness Studio Active", "Osobní trénink", "Pavel Dvořák", "pavel.dvorak@email.cz", "Potvrzeno", "600 Kč"]
+    ];
+    
+    const csvContent = [csvHeaders, ...csvRows]
+      .map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    
+    reply.header('Content-Type', 'text/csv; charset=utf-8');
+    reply.header('Content-Disposition', 'attachment; filename="rezervace-export.csv"');
+    return csvContent;
+  });
+}

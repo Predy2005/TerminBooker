@@ -44,6 +44,7 @@ import {
   demoBlackouts,
   demoPayments 
 } from "./demoData";
+import { registerSuperAdminRoutes } from "./super-admin-routes";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
@@ -1175,6 +1176,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return reply.status(500).send({ message: "Internal server error" });
     }
   });
+
+  // Register Super Admin routes
+  await registerSuperAdminRoutes(server);
 
   // Forward all other requests to Fastify
   app.use("/api", (req, res, next) => {
