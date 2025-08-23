@@ -24,7 +24,7 @@ const demoOrganizations = [
   {
     id: "org-1",
     name: "Salon Krása",
-    slug: "salon-krasa",
+    slug: "demo",
     email: "info@salonkrasa.cz",
     phone: "+420 777 123 456",
     address: "Václavské náměstí 1, Praha 1",

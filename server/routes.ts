@@ -95,7 +95,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Demo login endpoint
-  server.post("/auth/demo", async (request, reply) => {
+  server.post("/auth/demo", {
+    config: {
+      rawBody: true
+    }
+  }, async (request, reply) => {
     // Simulate demo user login
     const token = generateToken({ 
       userId: demoUser.id, 
@@ -551,7 +555,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check for demo organizations first
       const demoOrgs = {
-        'salon-krasa': 'org-1',
+        'demo': 'org-1',
         'fitness-active': 'org-2', 
         'vet-zdravi': 'org-3'
       };
@@ -590,7 +594,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check for demo organizations first
       const demoOrgs = {
-        'salon-krasa': 'org-1',
+        'demo': 'org-1',
         'fitness-active': 'org-2',
         'vet-zdravi': 'org-3'
       };

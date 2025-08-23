@@ -498,7 +498,7 @@ export default function LandingPage() {
               <Link href="/app/auth/register">Vytvořit účet zdarma</Link>
             </Button>
             <Button variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-blue-600" asChild>
-              <Link href="/demo-salon">Podívat se na ukázku</Link>
+              <Link href="/demo">Podívat se na ukázku</Link>
             </Button>
           </div>
         </div>
@@ -524,7 +524,7 @@ export default function LandingPage() {
                 <li><a href="#funkce" className="hover:text-white">Funkce</a></li>
                 <li><a href="#cenik" className="hover:text-white">Ceník</a></li>
                 <li><Link href="/docs" className="hover:text-white">Dokumentace</Link></li>
-                <li><Link href="/demo-salon" className="hover:text-white">Demo</Link></li>
+                <li><Link href="/demo" className="hover:text-white">Demo</Link></li>
               </ul>
             </div>
             
