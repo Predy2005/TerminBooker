@@ -132,7 +132,7 @@ const layoutTemplates = {
             type: "text",
             required: true,
             placeholder: "Zadejte vaše jméno",
-            width: "half" as const as const
+            width: "half" as const
           },
           {
             id: "customerEmail", 
@@ -497,7 +497,7 @@ export default function FormEditor() {
         </div>
         
         <div className="max-w-2xl mx-auto p-6">
-          <FormPreview steps={steps} />
+          <FormPreview steps={steps} layout={currentLayout} />
         </div>
       </div>
     );
@@ -952,74 +952,165 @@ function TemplatesModal({ onSelectTemplate, onClose, currentTemplate }: {
   );
 }
 
-function FormPreview({ steps }: { steps: FormStep[] }) {
+function FormPreview({ steps, layout = "vertical" }: { steps: FormStep[], layout?: string }) {
+  // Pro wizard layout zobrazit jen první krok s navigací
+  if (layout === "wizard") {
+    const currentStep = steps[0] || steps[0];
+    return (
+      <div className="space-y-6">
+        {/* Wizard progress */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-2">
+            {steps.map((step, index) => (
+              <div key={step.id} className="flex items-center">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                  index === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                }`}>
+                  {index + 1}
+                </div>
+                {index < steps.length - 1 && (
+                  <div className="w-8 h-0.5 bg-muted mx-2" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* Current step */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{currentStep.name}</CardTitle>
+            <p className="text-sm text-muted-foreground">Krok 1 z {steps.length}</p>
+          </CardHeader>
+          <CardContent>
+            <StepPreviewContent step={currentStep} />
+            <div className="flex justify-between mt-6">
+              <Button variant="outline" disabled>Zpět</Button>
+              <Button>Pokračovat</Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Pro horizontální layout zobrazit kroky vedle sebe
+  if (layout === "horizontal") {
+    return (
+      <div className="grid md:grid-cols-2 gap-6">
+        {steps.map((step) => (
+          <Card key={step.id}>
+            <CardHeader>
+              <CardTitle className="text-lg">{step.name}</CardTitle>
+              {step.required && (
+                <Badge variant="secondary">Povinný</Badge>
+              )}
+            </CardHeader>
+            <CardContent>
+              <StepPreviewContent step={step} />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  // Pro minimální layout zobrazit kompaktně
+  if (layout === "minimal") {
+    return (
+      <div className="max-w-md mx-auto space-y-4">
+        {steps.map((step) => (
+          <Card key={step.id} className="border-l-4 border-l-primary">
+            <CardContent className="pt-4">
+              <h3 className="font-medium mb-3">{step.name}</h3>
+              <StepPreviewContent step={step} />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  // Výchozí vertikální layout
   return (
     <div className="space-y-6">
       {steps.map((step) => (
         <Card key={step.id}>
           <CardHeader>
             <CardTitle>{step.name}</CardTitle>
+            {step.required && (
+              <Badge variant="secondary">Povinný krok</Badge>
+            )}
           </CardHeader>
           <CardContent>
-            {step.type === "service_selection" && (
-              <div className="text-muted-foreground">
-                [Náhled výběru služby]
-              </div>
-            )}
-            
-            {step.type === "datetime_selection" && (
-              <div className="text-muted-foreground">
-                [Náhled výběru data a času]
-              </div>
-            )}
-            
-            {step.type === "service_datetime_combined" && (
-              <div className="text-muted-foreground">
-                [Náhled kombinovaného výběru služby a času]
-              </div>
-            )}
-            
-            {step.type === "contact_form" && (
-              <div className="grid gap-4">
-                {step.fields.map((field) => (
-                  <div key={field.id} className={`
-                    ${field.width === "half" ? "col-span-6" : ""}
-                    ${field.width === "third" ? "col-span-4" : ""}
-                    ${field.width === "quarter" ? "col-span-3" : ""}
-                  `}>
-                    <Label>{field.name} {field.required && "*"}</Label>
-                    {field.type === "textarea" ? (
-                      <Textarea placeholder={field.placeholder} disabled />
-                    ) : field.type === "checkbox" ? (
-                      <div className="flex items-center space-x-2">
-                        <input type="checkbox" disabled />
-                        <Label>{field.name}</Label>
-                      </div>
-                    ) : (
-                      <Input 
-                        type={field.type} 
-                        placeholder={field.placeholder} 
-                        disabled 
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            {step.type === "confirmation" && (
-              <div className="space-y-4">
-                {step.fields.map((field) => (
-                  <div key={field.id} className="flex items-center space-x-2">
-                    <input type="checkbox" disabled />
-                    <Label>{field.name}</Label>
-                  </div>
-                ))}
-              </div>
-            )}
+            <StepPreviewContent step={step} />
           </CardContent>
         </Card>
       ))}
+    </div>
+  );
+}
+
+// Komponenta pro zobrazení obsahu kroku
+function StepPreviewContent({ step }: { step: FormStep }) {
+  return (
+    <div>
+      {step.type === "service_selection" && (
+        <div className="text-muted-foreground">
+          [Náhled výběru služby - zobrazí se seznam dostupných služeb]
+        </div>
+      )}
+      
+      {step.type === "datetime_selection" && (
+        <div className="text-muted-foreground">
+          [Náhled výběru data a času - kalendář a časové sloty]
+        </div>
+      )}
+      
+      {step.type === "service_datetime_combined" && (
+        <div className="text-muted-foreground">
+          [Náhled kombinovaného výběru služby a času]
+        </div>
+      )}
+      
+      {step.type === "contact_form" && (
+        <div className="grid gap-4">
+          {step.fields.map((field) => (
+            <div key={field.id} className={`
+              ${field.width === "half" ? "md:col-span-6" : ""}
+              ${field.width === "third" ? "md:col-span-4" : ""}
+              ${field.width === "quarter" ? "md:col-span-3" : ""}
+            `}>
+              <Label>{field.name} {field.required && "*"}</Label>
+              {field.type === "textarea" ? (
+                <Textarea placeholder={field.placeholder} disabled />
+              ) : field.type === "checkbox" ? (
+                <div className="flex items-center space-x-2">
+                  <input type="checkbox" disabled />
+                  <Label>{field.name}</Label>
+                </div>
+              ) : (
+                <Input 
+                  type={field.type} 
+                  placeholder={field.placeholder} 
+                  disabled 
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {step.type === "confirmation" && (
+        <div className="space-y-4">
+          {step.fields.map((field) => (
+            <div key={field.id} className="flex items-center space-x-2">
+              <input type="checkbox" disabled />
+              <Label>{field.name}</Label>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
