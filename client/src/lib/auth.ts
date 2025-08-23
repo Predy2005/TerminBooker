@@ -7,8 +7,13 @@ export function useAuth() {
     queryKey: ["/api/auth/me"],
     queryFn: async () => {
       try {
-        const org = await organizationApi.get();
-        return org ? { id: "current", email: "current@user.com" } : null;
+        const response = await fetch("/api/auth/me", {
+          credentials: "include"
+        });
+        if (response.ok) {
+          return await response.json();
+        }
+        return null;
       } catch {
         return null;
       }

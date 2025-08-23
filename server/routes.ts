@@ -194,6 +194,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return { message: "Odhlášení bylo úspěšné" };
   });
 
+  // Current user endpoint
+  server.get("/auth/me", async (request, reply) => {
+    try {
+      const authData = await requireAuth(request, reply);
+      
+      // Get user from storage
+      const user = await storage.getUser(authData.userId);
+      if (!user) {
+        return reply.status(401).send({ message: "Uživatel nenalezen" });
+      }
+
+      // Get organization from storage
+      const organization = await storage.getOrganization(authData.organizationId);
+      if (!organization) {
+        return reply.status(401).send({ message: "Organizace nenalezena" });
+      }
+
+      return {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        organizationId: organization.id,
+        organization: {
+          id: organization.id,
+          name: organization.name,
+          slug: organization.slug,
+          plan: organization.plan || 'FREE',
+          stripeOnboardingStatus: organization.stripeOnboardingStatus,
+          stripeAccountId: organization.stripeAccountId
+        }
+      };
+    } catch (error: any) {
+      return reply.status(401).send({ message: "Neautorizovaný přístup" });
+    }
+  });
+
   // Forgot password endpoint
   server.post("/auth/forgot-password", async (request, reply) => {
     try {

@@ -3,6 +3,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import LandingPage from "@/pages/landing";
 import DocsPage from "@/pages/docs";
 import SupportPage from "@/pages/support";
@@ -49,34 +50,44 @@ function Router() {
       {/* Demo login */}
       <Route path="/demo" component={DemoLogin} />
       
-      {/* Super Admin Test */}
-      <Route path="/super-admin-test" component={SuperAdminTest} />
+      {/* Super Admin Test - PROTECTED */}
+      <Route path="/super-admin-test" component={() => <ProtectedRoute><SuperAdminTest /></ProtectedRoute>} />
       
-      {/* Super Admin routes - MUST BE BEFORE /:orgSlug */}
+      {/* Super Admin routes - PROTECTED - MUST BE BEFORE /:orgSlug */}
       <Route path="/super-admin" component={() => (
-        <SuperAdminLayout>
-          <SuperAdminDashboard />
-        </SuperAdminLayout>
+        <ProtectedRoute>
+          <SuperAdminLayout>
+            <SuperAdminDashboard />
+          </SuperAdminLayout>
+        </ProtectedRoute>
       )} />
       <Route path="/super-admin/organizations" component={() => (
-        <SuperAdminLayout>
-          <SuperAdminOrganizations />
-        </SuperAdminLayout>
+        <ProtectedRoute>
+          <SuperAdminLayout>
+            <SuperAdminOrganizations />
+          </SuperAdminLayout>
+        </ProtectedRoute>
       )} />
       <Route path="/super-admin/users" component={() => (
-        <SuperAdminLayout>
-          <SuperAdminUsers />
-        </SuperAdminLayout>
+        <ProtectedRoute>
+          <SuperAdminLayout>
+            <SuperAdminUsers />
+          </SuperAdminLayout>
+        </ProtectedRoute>
       )} />
       <Route path="/super-admin/billing" component={() => (
-        <SuperAdminLayout>
-          <SuperAdminBilling />
-        </SuperAdminLayout>
+        <ProtectedRoute>
+          <SuperAdminLayout>
+            <SuperAdminBilling />
+          </SuperAdminLayout>
+        </ProtectedRoute>
       )} />
       <Route path="/super-admin/audit" component={() => (
-        <SuperAdminLayout>
-          <SuperAdminAudit />
-        </SuperAdminLayout>
+        <ProtectedRoute>
+          <SuperAdminLayout>
+            <SuperAdminAudit />
+          </SuperAdminLayout>
+        </ProtectedRoute>
       )} />
       
       {/* Static pages */}
@@ -95,21 +106,21 @@ function Router() {
       <Route path="/app/auth/forgot-password" component={ForgotPassword} />
       <Route path="/app/auth/reset-password" component={ResetPassword} />
       
-      {/* Dashboard routes */}
-      <Route path="/app" component={Dashboard} />
-      <Route path="/app/dashboard" component={Dashboard} />
-      <Route path="/app/services" component={Services} />
-      <Route path="/app/availability" component={Availability} />
-      <Route path="/app/blackouts" component={Blackouts} />
-      <Route path="/app/bookings" component={Bookings} />
-      <Route path="/app/settings" component={Settings} />
-      <Route path="/app/form-editor" component={FormEditor} />
-      <Route path="/app/embed" component={EmbedGenerator} />
-      <Route path="/app/billing" component={BillingPage} />
-      <Route path="/app/billing-symfony" component={BillingSymfonyPage} />
-      <Route path="/app/billing/connect/success" component={BillingConnectSuccessPage} />
-      <Route path="/app/billing/connect/refresh" component={BillingConnectRefreshPage} />
-      <Route path="/app/pricing" component={Pricing} />
+      {/* Dashboard routes - PROTECTED */}
+      <Route path="/app" component={() => <ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/app/dashboard" component={() => <ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/app/services" component={() => <ProtectedRoute><Services /></ProtectedRoute>} />
+      <Route path="/app/availability" component={() => <ProtectedRoute><Availability /></ProtectedRoute>} />
+      <Route path="/app/blackouts" component={() => <ProtectedRoute><Blackouts /></ProtectedRoute>} />
+      <Route path="/app/bookings" component={() => <ProtectedRoute><Bookings /></ProtectedRoute>} />
+      <Route path="/app/settings" component={() => <ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/app/form-editor" component={() => <ProtectedRoute><FormEditor /></ProtectedRoute>} />
+      <Route path="/app/embed" component={() => <ProtectedRoute><EmbedGenerator /></ProtectedRoute>} />
+      <Route path="/app/billing" component={() => <ProtectedRoute><BillingPage /></ProtectedRoute>} />
+      <Route path="/app/billing-symfony" component={() => <ProtectedRoute><BillingSymfonyPage /></ProtectedRoute>} />
+      <Route path="/app/billing/connect/success" component={() => <ProtectedRoute><BillingConnectSuccessPage /></ProtectedRoute>} />
+      <Route path="/app/billing/connect/refresh" component={() => <ProtectedRoute><BillingConnectRefreshPage /></ProtectedRoute>} />
+      <Route path="/app/pricing" component={() => <ProtectedRoute><Pricing /></ProtectedRoute>} />
       <Route path="/billing/success" component={BillingSuccess} />
       
       {/* Booking payment routes */}
