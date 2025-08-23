@@ -4,6 +4,14 @@ export interface Organization {
   slug: string;
   timezone: string;
   language: string;
+  plan?: string;
+  logoUrl?: string;
+  businessAddress?: string;
+  businessCity?: string;
+  businessZip?: string;
+  businessCountry?: string;
+  businessIco?: string;
+  businessDic?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -69,4 +77,21 @@ export interface TimeSlot {
 export interface AuthUser {
   id: string;
   email: string;
+}
+
+export interface Invoice {
+  id: string;
+  organizationId: string;
+  organizationName: string;
+  amount: number;
+  currency: string;
+  status: "draft" | "sent" | "paid" | "overdue" | "cancelled";
+  dueDate: string;
+  createdAt: string;
+  items: Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    total: number;
+  }>;
 }

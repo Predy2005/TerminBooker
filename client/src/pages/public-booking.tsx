@@ -49,11 +49,22 @@ export default function PublicBooking() {
       <header className="bg-white shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900" data-testid="text-organization-name">
-                {organization.name}
-              </h1>
-              <p className="text-slate-600 mt-1">Rezervace online termínů</p>
+            <div className="flex items-center gap-4">
+              {/* Logo - pouze pro PRO/BUSINESS plány */}
+              {(organization.plan === 'PRO' || organization.plan === 'BUSINESS') && organization.logoUrl && (
+                <img 
+                  src={organization.logoUrl.startsWith('/objects/') ? `/api${organization.logoUrl}` : organization.logoUrl} 
+                  alt={`${organization.name} logo`}
+                  className="h-12 w-auto object-contain"
+                  data-testid="img-organization-logo"
+                />
+              )}
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900" data-testid="text-organization-name">
+                  {organization.name}
+                </h1>
+                <p className="text-slate-600 mt-1">Rezervace online termínů</p>
+              </div>
             </div>
             <div className="text-sm text-slate-500">
               <Clock className="inline mr-1 h-4 w-4" />

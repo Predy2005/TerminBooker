@@ -14,6 +14,8 @@ import { superAdminApi } from "@/lib/super-admin-api";
 import { CreditCard, Search, Plus, Download, FileText, DollarSign, Receipt, TrendingUp, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
+import InvoicePreview from "@/components/InvoicePreview";
+import type { Invoice } from "@/types";
 
 function BillingPlansTab() {
   const { data: plans, isLoading: plansLoading } = useQuery({
@@ -102,15 +104,48 @@ function BillingPlansTab() {
                     Vytvořeno: {format(new Date(invoice.createdAt), "d. M. yyyy", { locale: cs })}
                   </p>
                 </div>
-                <div className="text-right space-y-1">
-                  <p className="font-medium">{invoice.amount} Kč</p>
-                  <Badge variant={
-                    invoice.status === "paid" ? "default" : 
-                    invoice.status === "sent" ? "secondary" : "destructive"
-                  }>
-                    {invoice.status === "paid" ? "Zaplaceno" : 
-                     invoice.status === "sent" ? "Odesláno" : "Neúspěšné"}
-                  </Badge>
+                <div className="flex items-center gap-3">
+                  <div className="text-right space-y-1">
+                    <p className="font-medium">{invoice.amount} Kč</p>
+                    <Badge variant={
+                      invoice.status === "paid" ? "default" : 
+                      invoice.status === "sent" ? "secondary" : "destructive"
+                    }>
+                      {invoice.status === "paid" ? "Zaplaceno" : 
+                       invoice.status === "sent" ? "Odesláno" : "Neúspěšné"}
+                    </Badge>
+                  </div>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" data-testid={`button-preview-invoice-${invoice.id}`}>
+                        <Eye className="h-4 w-4 mr-1" />
+                        Náhled
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Náhled faktury #{invoice.id}</DialogTitle>
+                        <DialogDescription>
+                          Zobrazení faktury s logem organizace (dostupné pro PRO/BUSINESS plány)
+                        </DialogDescription>
+                      </DialogHeader>
+                      <InvoicePreview 
+                        invoice={invoice as Invoice}
+                        organization={{
+                          id: invoice.organizationId,
+                          name: invoice.organizationName,
+                          logoUrl: "/objects/uploads/demo-logo.png", // Demo logo pro náhled
+                          plan: "PRO", // Demo PRO plán
+                          businessAddress: "Václavské náměstí 1",
+                          businessCity: "Praha 1",
+                          businessZip: "110 00",
+                          businessCountry: "Česká republika",
+                          businessIco: "12345678",
+                          businessDic: "CZ12345678",
+                        }}
+                      />
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </div>
             ))}

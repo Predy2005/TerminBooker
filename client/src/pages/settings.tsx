@@ -85,6 +85,7 @@ export default function Settings() {
         secondaryColor: organization.secondaryColor || "#64748b",
         accentColor: organization.accentColor || "#3b82f6"
       });
+      setLogoUrl(organization.logoUrl || "");
     }
   }, [organization, form]);
 
@@ -372,45 +373,65 @@ export default function Settings() {
               </CardContent>
             </Card>
 
-            {/* Logo Upload Section */}
-            <Card className="mt-6">
+            {/* Logo Upload Section - PRO/BUSINESS Only */}
+            <Card className="mt-6 border-purple-200 bg-purple-50">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-purple-800">
                   <Upload className="h-5 w-5" />
                   Logo organizace
+                  <span className="ml-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs px-2 py-1 rounded-full">
+                    PRO
+                  </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {logoUrl && (
-                    <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg">
-                      <img 
-                        src={logoUrl.startsWith('/objects/') ? `/api${logoUrl}` : logoUrl} 
-                        alt="Logo organizace" 
-                        className="w-16 h-16 object-contain bg-white rounded border" 
-                      />
-                      <div className="text-sm text-slate-600">
-                        <p>Aktuální logo</p>
-                        <p className="text-xs text-slate-500">Nahráno</p>
+                {organization?.plan === 'PRO' || organization?.plan === 'BUSINESS' ? (
+                  <div className="space-y-4">
+                    <p className="text-sm text-purple-700">
+                      Nahrajte logo které se zobrazí na rezervačních formulářích a fakturách.
+                    </p>
+                    
+                    {logoUrl && (
+                      <div className="flex items-center gap-4 p-4 bg-white rounded-lg border border-purple-200">
+                        <img 
+                          src={logoUrl.startsWith('/objects/') ? `/api${logoUrl}` : logoUrl} 
+                          alt="Logo organizace" 
+                          className="w-16 h-16 object-contain bg-white rounded border" 
+                        />
+                        <div className="text-sm text-purple-700">
+                          <p>Aktuální logo</p>
+                          <p className="text-xs text-purple-500">Nahráno</p>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  <ObjectUploader
-                    maxNumberOfFiles={1}
-                    maxFileSize={5242880} // 5MB
-                    onGetUploadParameters={handleGetUploadParameters}
-                    onComplete={handleLogoUploadComplete}
-                    buttonClassName="w-full"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Upload className="h-4 w-4" />
-                      {logoUrl ? "Změnit logo" : "Nahrát logo"}
-                    </div>
-                  </ObjectUploader>
-                  <p className="text-sm text-slate-500">
-                    Podporované formáty: PNG, JPG, SVG. Maximální velikost: 5MB.
-                  </p>
-                </div>
+                    )}
+                    <ObjectUploader
+                      maxNumberOfFiles={1}
+                      maxFileSize={5242880} // 5MB
+                      onGetUploadParameters={handleGetUploadParameters}
+                      onComplete={handleLogoUploadComplete}
+                      buttonClassName="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Upload className="h-4 w-4" />
+                        {logoUrl ? "Změnit logo" : "Nahrát logo"}
+                      </div>
+                    </ObjectUploader>
+                    <p className="text-sm text-purple-600">
+                      Podporované formáty: PNG, JPG, SVG. Maximální velikost: 5MB.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Upload className="h-12 w-12 text-purple-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-purple-800 mb-2">Vlastní logo</h3>
+                    <p className="text-purple-600 mb-4">
+                      Nahrajte své logo pro zobrazení na rezervačních formulářích a fakturách. Funkce je dostupná pouze pro PRO a BUSINESS předplatitele.
+                    </p>
+                    <Button variant="outline" className="border-purple-300 text-purple-700 hover:bg-purple-100">
+                      Upgradovat na PRO
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
