@@ -11,9 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { bookingsApi, servicesApi } from "@/lib/api";
-import { Calendar, Download, Edit, Trash2, User, Mail, Phone, Clock, DollarSign } from "lucide-react";
+import { useOrganization } from "@/lib/auth";
+import CalendarView from "@/components/calendar/CalendarView";
+import { Calendar, Download, Edit, Trash2, User, Mail, Phone, Clock, DollarSign, List, Grid } from "lucide-react";
 import type { Booking, Service } from "@/types";
 
 const statusOptions = [
@@ -33,9 +36,13 @@ export default function Bookings() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editNote, setEditNote] = useState("");
   const [editStatus, setEditStatus] = useState<"PENDING" | "CONFIRMED" | "CANCELLED">("PENDING");
+  const [createBookingDate, setCreateBookingDate] = useState<Date | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: organization } = useOrganization();
 
   const { data: bookings = [], isLoading: loadingBookings } = useQuery({
     queryKey: ["/api/bookings", filters],
@@ -164,6 +171,17 @@ export default function Bookings() {
     return format(new Date(dateString), "d.M.yyyy HH:mm", { locale: cs });
   };
 
+  const handleCreateBooking = (date: Date) => {
+    setCreateBookingDate(date);
+    setIsCreateDialogOpen(true);
+  };
+
+  const handleEditBooking = (booking: Booking) => {
+    handleEdit(booking);
+  };
+
+  const hasCalendarAccess = organization?.plan === 'PRO' || organization?.plan === 'BUSINESS';
+
   return (
     <div className="min-h-screen bg-slate-50">
       <Sidebar />
@@ -179,14 +197,38 @@ export default function Bookings() {
                 </h1>
                 <p className="text-slate-600 mt-1">Spravujte všechny rezervace a jejich stavy</p>
               </div>
-              <Button
-                onClick={() => exportBookings.mutate()}
-                disabled={exportBookings.isPending}
-                data-testid="button-export-csv"
-              >
-                <Download className="mr-2 h-4 w-4" />
-                {exportBookings.isPending ? "Exportuji..." : "Export CSV"}
-              </Button>
+              <div className="flex items-center gap-2">
+                {hasCalendarAccess && (
+                  <div className="flex bg-slate-100 rounded-lg p-1 mr-4">
+                    <Button
+                      variant={viewMode === 'list' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setViewMode('list')}
+                      data-testid="view-list"
+                    >
+                      <List className="mr-2 h-4 w-4" />
+                      Seznam
+                    </Button>
+                    <Button
+                      variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setViewMode('calendar')}
+                      data-testid="view-calendar"
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      Kalendář
+                    </Button>
+                  </div>
+                )}
+                <Button
+                  onClick={() => exportBookings.mutate()}
+                  disabled={exportBookings.isPending}
+                  data-testid="button-export-csv"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  {exportBookings.isPending ? "Exportuji..." : "Export CSV"}
+                </Button>
+              </div>
             </div>
           </div>
         </header>
@@ -261,6 +303,13 @@ export default function Bookings() {
             <div className="text-center py-8">
               <p className="text-slate-600">Načítám rezervace...</p>
             </div>
+          ) : viewMode === 'calendar' && hasCalendarAccess ? (
+            <CalendarView
+              bookings={bookings}
+              services={services}
+              onCreateBooking={handleCreateBooking}
+              onEditBooking={handleEditBooking}
+            />
           ) : bookings.length === 0 ? (
             <Card>
               <CardContent className="pt-6 text-center py-12">
@@ -442,6 +491,47 @@ export default function Bookings() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog pro vytvoření nové rezervace */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nová rezervace</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-sm text-slate-600">
+              Vybraný termín: {createBookingDate && format(createBookingDate, "d.M.yyyy HH:mm", { locale: cs })}
+            </div>
+            <div className="text-sm text-slate-500">
+              Kalendářem můžete pouze vybrat termín. Pro dokončení rezervace přejděte do administrace nebo použijte veřejný formulář na webu.
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsCreateDialogOpen(false)}
+                className="flex-1"
+                data-testid="button-cancel-create"
+              >
+                Zrušit
+              </Button>
+              <Button 
+                onClick={() => {
+                  // V reálné aplikaci by zde bylo přesměrování na formulář rezervace
+                  toast({
+                    title: "Kalendářová rezervace",
+                    description: "Pro dokončení rezervace použijte veřejný formulář."
+                  });
+                  setIsCreateDialogOpen(false);
+                }}
+                className="flex-1"
+                data-testid="button-confirm-create"
+              >
+                OK
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
